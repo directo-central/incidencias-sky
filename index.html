@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestor Incidencias SKY</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: herramienta de trabajo diaria, clara y directa, como la mesa de control de un equipo de calidad.
+   IDEA: una bandeja de casos, cada evaluación negativa es una ficha que avanza de "por notificar" a "finalizado".
+   PICTURE: la propia bandeja de casos con su barra de avance por estado, arriba y grande.
+   COLOUR and TYPE: azul Directo #0A50E6 dominante, azul profundo #0038DB, blanco; verde solo para finalizado en la cabecera, verde lima como único acento (avance, acciones), blanco; Manrope.
+   LAYOUT: cabecera morada con cifras, pestañas, tabla de casos con editor desplegable; apilado en móvil. */
+:root{color-scheme:light dark;
+--sky:#0a50e6;--sky2:#0038db;--lime:#22c06b;--lime-ink:#ffffff;--ok:light-dark(#dcf5e7,#123b26);--ok-ink:light-dark(#0f6b3a,#7fe0a8);
+--bg:light-dark(#f2f4fa,#0b1220);--card:light-dark(#ffffff,#111a2e);--ink:light-dark(#111827,#e8edf7);
+--mut:light-dark(#5b6475,#9aa6bd);--line:light-dark(#e1e6f0,#22304d);--soft:light-dark(#eef2fb,#16223b);
+--warn:light-dark(#fff1c2,#4a3a0c);--warn-ink:light-dark(#6b4e00,#ffe08a);--red:light-dark(#c62f47,#ff7d92);
+--blue:light-dark(#2457c5,#8fb0ff)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Outfit,system-ui,sans-serif;overflow-x:clip}
+button,input,select,textarea{font:inherit;color:inherit}
+header{background:var(--card);color:var(--ink);padding:22px max(4vw,16px) 0;border-bottom:1px solid var(--line)}
+.top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;max-width:1280px;margin:0 auto}
+h1{font-size:clamp(24px,3vw,34px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.01em}
+h1{display:flex;align-items:center;gap:12px}h1 img{width:44px;height:44px;border-radius:10px;flex:none}
+.cli{color:#7c048c}
+:root[data-theme=dark] .cli{color:#d36be0}
+.sub{color:var(--mut);font-size:13px;margin-top:4px}
+.acts{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.btn:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,.tab:focus-visible{outline:3px solid #7fb0ff;outline-offset:2px}
+.btn.pri{background:var(--sky);border-color:var(--sky);color:#fff}
+header .btn.pri{background:var(--sky);border-color:var(--sky);color:#fff}
+.btn.ghost{background:transparent;color:#fff;border-color:#4d7ff0}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+select,input[type=text],input[type=date],input[type=email],textarea{min-height:40px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:6px 10px;font-size:16px;width:100%}
+textarea{min-height:84px;resize:vertical}
+.kpis{max-width:1280px;margin:20px auto 0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;overflow:hidden}
+.kpi{background:var(--card);padding:12px 16px 14px}
+.kpi .n small{font-size:14px;font-weight:600;color:var(--mut)}
+.kg{background:var(--soft);padding:7px 16px;font-size:12px;font-weight:700;color:var(--mut)}
+.kpi.sep,.kg+.kg{box-shadow:inset 3px 0 0 var(--sky)}
+.kpi .n{font-size:clamp(24px,3vw,34px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--sky)}
+:root[data-theme=dark] .kpi .n{color:#8fb4ff}
+.kpi .l{font-size:12.5px;color:var(--ink)}
+.kpi.hot .l{font-weight:700}
+.bar{max-width:1280px;margin:0 auto;height:8px;display:flex;background:var(--soft);border:1px solid var(--line);border-top:0;border-radius:0 0 8px 8px;overflow:hidden}
+.bar i{display:block;height:100%}
+.dias{max-width:1280px;margin:0 auto;display:flex;gap:6px;overflow-x:auto;padding:12px 0 16px}
+.dia{flex:1 0 78px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:8px 8px 6px;text-align:left;cursor:pointer;min-height:44px}
+.dia[aria-pressed=true]{background:var(--sky);color:#fff;border-color:var(--sky)}
+.dia .t{color:var(--sky)}.dia[aria-pressed=true] .t{color:#fff}
+.dia .d{font-size:12px;color:var(--mut);white-space:nowrap}.dia[aria-pressed=true] .d{color:#d6e2ff}.dia .t{font-size:18px;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
+.dia .s{font-size:11.5px;white-space:nowrap}.dia .s b{color:var(--sky)}.dia[aria-pressed=true] .s b{color:#fff}
+.dia .mb{height:4px;border-radius:2px;background:var(--soft);margin-top:5px;overflow:hidden}.dia .mb i{display:block;height:100%;background:var(--sky)}.dia[aria-pressed=true] .mb i{background:#fff}
+.dia.vacio{opacity:.45}
+nav{max-width:1280px;margin:0 auto;display:flex;gap:4px;overflow-x:auto;padding:0 max(4vw,16px)}
+.tab{flex:none;border:0;background:none;padding:14px 14px 12px;font-weight:700;color:var(--mut);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;min-height:44px}
+.tab[aria-selected=true]{color:var(--sky);border-color:var(--sky)}
+:root[data-theme=dark] .tab[aria-selected=true]{color:#8fb4ff;border-color:#8fb4ff}
+.tab .c{background:var(--soft);border-radius:20px;padding:1px 8px;font-size:12px;margin-left:6px}
+.navwrap{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+main{max-width:1280px;margin:0 auto;padding:20px max(4vw,16px) 60px}
+.filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.filters label,.f label{font-size:12.5px;color:var(--mut);font-weight:600;display:block;margin-bottom:3px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12.5px;color:var(--mut);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--soft);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.row{cursor:pointer}tr.row:hover td{background:var(--soft)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.nw{white-space:nowrap}
+.chip{display:inline-block;border-radius:20px;padding:2px 10px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.st-pn{background:var(--soft);color:var(--mut);box-shadow:inset 0 0 0 1px var(--line)}
+.st-pl{background:light-dark(#fff3bf,#4a3d07);color:light-dark(#6b5200,#ffe27a)}
+
+.st-pr{background:light-dark(#ffe1c4,#4d2a0a);color:light-dark(#9a4a00,#ffb26b)}
+.st-fi{background:var(--ok);color:var(--ok-ink)}
+.tr-i{color:var(--red);font-weight:700}.tr-a{color:var(--warn-ink);font-weight:700}
+.stars{color:#e0a800;letter-spacing:1px;white-space:nowrap}
+td.plan{max-width:260px;font-size:13px;color:var(--mut)}.add{color:var(--sky);font-weight:700;white-space:nowrap}
+.caso{font-weight:600}.tag{display:block;font-size:11.5px;font-weight:700;margin-top:2px}
+.rep th.p{background:#7030a0;color:#fff}.rep th.d{background:var(--sky);color:#fff}
+.ia{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:-4px 0 12px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:6px;vertical-align:1px}
+.ed td{background:var(--soft);padding:16px}
+.edgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.edgrid .w2{grid-column:span 2}.edgrid .w4{grid-column:1/-1}
+.quote{background:var(--card);border-left:4px solid var(--sky);padding:10px 12px;border-radius:6px}
+.row2{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}
+.empty{padding:40px 20px;text-align:center;color:var(--mut)}
+.dgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.dk{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}
+.dk>div{background:var(--card);padding:12px 16px}.dk .n{font-size:28px;font-weight:800;color:var(--sky);line-height:1.1}.dk .n.r{color:var(--red)}.dk .l{font-size:13px}.dk .h{font-size:12px;color:var(--mut)}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}.ph h3{margin:0;font-size:15px}.ph span{font-size:12px;color:var(--mut)}
+.hb{padding:10px 16px 14px}.hb div{display:grid;grid-template-columns:minmax(0,1fr) 120px 32px;gap:10px;align-items:center;font-size:13px;padding:3px 0}
+.hb i{display:block;height:10px;border-radius:5px;background:var(--sky)}.hb b{text-align:right;font-variant-numeric:tabular-nums}
+.lv{display:inline-block;border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.lv-c{background:light-dark(#fde0e5,#4d1520);color:var(--red)}.lv-a{background:var(--warn);color:var(--warn-ink)}
+.tg{display:inline-block;font-size:11.5px;background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin:1px 3px 1px 0}
+.sub2 td{background:var(--soft);font-size:13px}
+@media(max-width:900px){.dgrid{grid-template-columns:1fr}.dk{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.cards{display:grid;gap:14px}
+.mail{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.mail h3{margin:0 0 6px;font-size:16px}
+.meta{font-size:13px;color:var(--mut);display:grid;gap:2px;margin-bottom:10px}
+.meta b{color:var(--ink);font-weight:600}
+.prev{border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff;color:#1d1426;overflow-x:auto;font-size:13px}
+.prev table{font-size:12px}.prev th{background:#0a50e6;color:#fff}.prev td,.prev th{border:1px solid #bbb;padding:5px}
+h2{font-size:20px;margin:6px 0 12px}
+.note{font-size:13px;color:var(--mut)}
+footer{max-width:1280px;margin:0 auto;padding:18px max(4vw,16px) 32px;border-top:1px solid var(--line);font-size:13px;color:var(--mut);display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between}
+footer a{color:var(--sky)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;font-weight:600;z-index:20;opacity:0;transition:opacity .2s;pointer-events:none;max-width:92vw}
+.toast.on{opacity:1}
+.drop{border:2px dashed #4d7ff0;border-radius:14px;padding:18px;background:var(--card);margin-bottom:16px}
+.f{margin-bottom:10px}
+.pager{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;font-size:13px;color:var(--mut)}
+.scroll{overflow-x:auto}
+.cfg td{padding:6px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.kg{grid-column:1/-1!important}.kpi.sep{box-shadow:none}.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.edgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 12px;padding-inline-start:8.5em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--mut);font-size:12px}.stack td:empty{display:none}.stack tr.row{border-bottom:1px solid var(--line)}.edgrid{grid-template-columns:minmax(0,1fr)}.edgrid .w2{grid-column:auto}.stack .ed td{padding-inline-start:12px}.stack .ed td::before{display:none}}
+@media(prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div><h1><img src="data:image/png;base64,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" alt="Directo">Incidencias <span class="cli">SKY</span></h1><div class="sub">Calidad Directo · evaluaciones de pasajeros con estrellas · <span id="dbst">conectando…</span><span id="usr"></span></div></div>
+    <div class="acts">
+      <select id="mes" aria-label="Periodo" style="width:auto;min-width:150px;background:var(--card);color:var(--ink);border-color:var(--line)"></select>
+      <label class="btn pri" for="file">Importar descarga</label>
+      <input id="file" type="file" accept=".xlsx,.xls,.csv" hidden>
+      <label class="btn" for="ffile" id="flbtn" title="Sube el Reporte de Conductores para identificar la flota de cada móvil">Importar flota</label>
+      <input id="ffile" type="file" accept=".xlsx,.xls,.csv" hidden>
+    </div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="bar" id="bar" title="Avance de los casos a gestionar: azul = finalizados, azul medio = en proceso, celeste = en planificación, gris = pendiente"></div>
+  <div class="dias" id="dias" aria-label="Desglose por día"></div>
+</header>
+<div class="navwrap"><nav role="tablist" id="tabs">
+  <button class="tab" role="tab" data-t="casos" aria-selected="true">Casos</button>
+  <button class="tab" role="tab" data-t="correos">Correos</button>
+  <button class="tab" role="tab" data-t="reporte">Reporte cliente</button>
+  <button class="tab" role="tab" data-t="bbdd">BBDD</button>
+  <button class="tab" role="tab" data-t="config">Configuración</button>
+  <button class="tab" role="tab" data-t="dash">Dashboard</button>
+</nav></div>
+<main id="main"><div class="empty">Cargando la base de datos…</div></main>
+<footer><span><b>Calidad Directo</b> · La forma más confiable y segura de moverte</span><a href="https://www.directoapp.pe/">directoapp.pe</a></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+{
+const K = {"cat": [["Conductor con posibles signos de fatiga y somnolencia", "Cansancio / somnolencia", "Supply (conductor)", ["cansancio conductor"], ["dormi", "durmi", "cansad", "somnol", "sueno", "dormid", "quedaba dormido", "se queda dormido", "cabece", "bostez", "pestane", "cerraba los ojos", "cerrando los ojos", "fatiga", "agotad"]], ["Seguridad vial", "Exceso de velocidad", "Supply (conductor)", ["exceso de velocidad"], ["velocidad", "rapido", "casi nos choca", "frenado"]], ["Seguridad vial", "Uso de celular", "Supply (conductor)", [], ["celular", "telefono"]], ["Seguridad vial", "Cinturón de seguridad", "Supply (conductor)", ["estado cinturon de seguridad"], ["cinturon"]], ["Seguridad vial", "Conducción imprudente", "Supply (conductor)", ["conduccion imprudente"], ["imprudente"]], ["Planificación de ruta", "Ruta / orden de recojos", "Planificación de rutas - The Optimal", ["planificacion de ruta"], ["planifica", "itinerario", "pasearon", "volvimos a pasar", "juntar dos servicios", "la ruta", "recojo pudo ser al reves"]], ["Planificación de ruta", "Tiempo excesivo / recojo muy temprano", "Planificación de rutas - The Optimal", [], ["demasiado temprano", "tiempo en movilidad", "dos horas", "1:30", "01:28"]], ["Puntualidad", "Llegada tarde", "Planificación de rutas - The Optimal", [], ["tarde", "tardi", "tardo", "demora", "retras", "espere", "esperar", "minutos despues de la hora"]], ["Navegación del conductor", "No usa app/GPS, no ubica dirección, autopistas", "Supply (conductor)", ["uso de autopistas"], ["aplicacion", "gps", "no sabe encontrar", "direccion"]], ["Trato del conductor", "Amabilidad / cortesía", "Supply (conductor)", ["amabilidad del conductor"], ["despota", "gritando", "cordialidad", "cortesia", "grosero", "molesto", "defensiva", "amargado", "radio"]], ["Climatización", "Aire acondicionado", "Supply (unidad)", ["climatizacion"], ["aire", "calor"]], ["Estado del vehículo", "Limpieza / estado de la unidad", "Supply (unidad)", ["limpieza del vehiculo"], ["sucio", "olor", "olia", "huele", "se le paraba el auto", "incomod", "asiento"]], ["Protocolo de servicio", "Ficha, combustible, identificación", "Supply (conductor)", ["ficha del conductor"], ["recargar gasolina", "fichas de conductor", "no se acerco", "maletera"]]], "neg": ["no ", "mal", "pesim", "tarde", "tardi", "demor", "huele", "olia", "olor", "sucio", "incomod", "peligro", "falt", "nunca", "deberia", "tuve que", "tuve q", "esper", "reclamo", "queja", "lamentable", "demasiado temprano", "pero ", "sin embargo", "revisar", "excesiv"], "pos": ["amabilidad del conductor", "limpieza/estado del vehiculo", "muy cortes", "planificacion de ruta", "seguridad"], "prio": ["Conductor con posibles signos de fatiga y somnolencia", "Seguridad vial", "Planificación de ruta", "Puntualidad", "Navegación del conductor", "Trato del conductor", "Climatización", "Estado del vehículo", "Protocolo de servicio"]};
+const LI = "Calificación (1-3★)", LA = "Calificación (4-5★ con queja)", LP = "Positiva (sin gestión)";
+const ST = ["En planificación","En proceso","Finalizado"];
+const DEF_AREAS = [
+  {area:"Supply (conductor)",codigo:"SUPC",resp:"Jorge / Ximena",para:"",cc:""},
+  {area:"Supply (unidad)",codigo:"SUPU",resp:"Jorge / Ximena",para:"",cc:""},
+  {area:"Planificación de rutas",codigo:"PLA",resp:"Martha",para:"",cc:""},
+  {area:"Planificación de rutas - The Optimal",codigo:"OPT",resp:"The Optimal",para:"",cc:""},
+  {area:"Customer Care (revisar)",codigo:"CC",resp:"Customer Care",para:"",cc:""}];
+const COLS = ["Fecha","Ruta","Unidad","Conductor","DNI","Estrellas","Tipo registro","Comentario pasajero","Tipo de Incidencia","Subtipos","Caso","Área responsable","Responsable","Plan de Acción","Fecha Inicio","Estado","Fecha Fin","Comentario de Directo"];
+const POS = new Set(K.pos);
+
+let db = null, dl = null;
+let dias = {}, gest = {}, cfg = {areas:DEF_AREAS, clientePara:"", clienteCc:"", firma:"Calidad Directo"};
+let rows = [];               // evaluaciones con clasificación + gestión
+let tab = "casos", dOpen = null, DV = "30", dAll = {}, open = null, page = 0, pending = null;
+const F = {mes:null, estado:"abiertos", area:"", tipo:"", q:""};
+let conectado = false;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\s+/g," ").trim();
+const today = () => { const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const fdate = s => s ? s.slice(8,10)+"/"+s.slice(5,7)+"/"+s.slice(0,4) : "";
+const toast = m => { const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 3200); };
+const areaCfg = a => (cfg.areas || DEF_AREAS).find(x => x.area === a) || null;
+const stClass = s => s === "Finalizado" ? "st-fi" : s === "En proceso" ? "st-pr" : s === "En planificación" ? "st-pl" : "st-pn";
+const stLabel = s => s || "Pendiente";
+const toDate = s => s ? new Date(+s.slice(0,4), +s.slice(5,7)-1, +s.slice(8,10)) : null;
+
+// ---------- clasificación (misma lógica del Excel) ----------
+function classify(est, etiq, texto) {
+  const t = " " + norm(texto) + " ";
+  const ok = est <= 3 || K.neg.some(n => t.includes(n));
+  let first = null; const subs = [];
+  for (const [tipo, sub, area, tags, kws] of K.cat) {
+    let hit = etiq.some(e => { let n = norm(e); const q = n.startsWith("["); if (q && n.includes("]")) n = n.slice(n.indexOf("]")+1).trim(); return (q || est <= 3) && tags.includes(n); });
+    if (!hit && (ok || tipo.includes("somnolencia"))) hit = kws.some(k => t.includes(k));   // somnolencia se marca siempre, aunque la calificación sea alta
+    if (hit) { if (!subs.includes(sub)) subs.push(sub); if (!first) first = [tipo, area]; }
+  }
+  if (first) return {tipo:first[0], area:first[1], subt:subs.join("; ")};
+  return est <= 3 ? {tipo:"Sin detalle", area:"Customer Care (revisar)", subt:""} : {tipo:"", area:"", subt:""};
+}
+
+function build() {
+  rows = [];
+  for (const f of Object.keys(dias).sort()) for (const e of (dias[f].evals || [])) {
+    const c = classify(e.est, e.etiq || [], e.texto || "");
+    const g = gest[e.id] || {};
+    const tipoReg = g.tipoReg || (e.est <= 3 ? LI : (c.tipo ? LA : LP));
+    const area = g.area ?? c.area;
+    rows.push({ ...e, fecha:f, tipoReg,
+      coment: [e.texto, (e.etiq||[]).join(" | ")].filter(Boolean).join(" | "),
+      tipoInc: g.tipoInc ?? c.tipo, subt: g.subt ?? c.subt, caso: g.caso || "", area,
+      resp: g.resp ?? (areaCfg(area)?.resp || ""), plan: g.plan || "", fini: g.fini || "",
+      estado: tipoReg === LP ? "" : (g.estado || ""), ffin: g.ffin || "", cdir: g.cdir || "", fcont: g.fcont || "", fcierre: g.fcierre || "" });
+  }
+}
+const gestionables = r => r.tipoReg !== LP;
+const iso = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const addD = (s, n) => { const d = toDate(s); d.setDate(d.getDate()+n); return iso(d); };
+const lunes = s => { const d = toDate(s); const w = (d.getDay()+6)%7; d.setDate(d.getDate()-w); return iso(d); };
+const semNum = s => { const d = toDate(s); d.setDate(d.getDate()+3-((d.getDay()+6)%7)); const y = new Date(d.getFullYear(),0,4); return 1+Math.round(((d-y)/864e5-3+((y.getDay()+6)%7))/7); };
+const NM = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"], ND = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+function rango() {   // [desde, hasta] del periodo elegido
+  const m = F.mes || "";
+  if (m.startsWith("W:")) return [m.slice(2), addD(m.slice(2), 6)];
+  if (m.startsWith("D:")) return [m.slice(2), m.slice(2)];
+  if (m.length === 7) { const d = new Date(+m.slice(0,4), +m.slice(5,7), 0); return [m+"-01", iso(d)]; }
+  return ["", "9999"];
+}
+const inMes = r => { const [a,b] = rango(); return r.fecha >= a && r.fecha <= b; };
+
+// ---------- cabecera ----------
+function renderDias(sel) {
+  let dias = [], tipo = "dia";
+  const base = sel.startsWith("D:") ? "W:" + lunes(sel.slice(2)) : sel;
+  if (base.startsWith("W:")) { for (let i = 0; i < 7; i++) dias.push(addD(base.slice(2), i)); }
+  else if (base.length === 7) { const [a,b] = rango(); for (let d = a; d <= b; d = addD(d,1)) dias.push(d); }
+  else { tipo = "sem"; dias = [...new Set(rows.map(r => lunes(r.fecha)))].sort(); }
+  const cel = dias.map(d => {
+    const L = rows.filter(r => tipo === "sem" ? lunes(r.fecha) === d : r.fecha === d);
+    const inc = L.filter(r => r.tipoReg === LI).length, ale = L.filter(r => r.tipoReg === LA).length;
+    const g = L.filter(gestionables), fin = g.filter(r => r.estado === "Finalizado").length;
+    const lab = tipo === "sem" ? `Sem ${semNum(d)} · ${+d.slice(8)} ${NM[+d.slice(5,7)-1]}` : `${ND[toDate(d).getDay()]} ${+d.slice(8)} ${NM[+d.slice(5,7)-1]}`;
+    const val = tipo === "sem" ? "W:"+d : "D:"+d;
+    return `<button class="dia ${L.length?"":"vacio"}" data-per="${val}" aria-pressed="${sel===val}" title="${L.length} evaluaciones · ${inc} de 1-3★ · ${ale} de 4-5★ con queja · ${fin} de ${g.length} finalizados">
+      <div class="d">${lab}</div><div class="t">${L.length}</div><div class="s">${g.length ? `<b>${g.length}</b> a gestionar` : "sin casos"}</div>
+      <div class="mb"><i style="width:${g.length ? fin*100/g.length : 0}%"></i></div></button>`;
+  }).join("");
+  $("#dias").innerHTML = cel;
+}
+
+function renderHead() {
+  const fechas = rows.map(r => r.fecha).sort();
+  const ultima = fechas[fechas.length-1] || "";
+  if (F.mes === null && ultima) F.mes = "W:" + lunes(ultima);
+  const semanas = [...new Set(fechas.map(lunes))].sort().reverse();
+  const meses = [...new Set(fechas.map(f => f.slice(0,7)))].sort().reverse();
+  const sel = F.mes || "";
+  const dsel = sel.startsWith("D:") ? `<option value="${sel}" selected>Día ${fdate(sel.slice(2))}</option>` : "";
+  $("#mes").innerHTML = dsel + `<optgroup label="Semanas">${semanas.map(w => { const h = addD(w,6); return `<option value="W:${w}" ${sel==="W:"+w?"selected":""}>Sem ${semNum(w)} · ${+w.slice(8)} ${NM[+w.slice(5,7)-1]} – ${+h.slice(8)} ${NM[+h.slice(5,7)-1]}</option>`; }).join("")}</optgroup>`
+    + `<optgroup label="Meses">${meses.map(m => `<option value="${m}" ${sel===m?"selected":""}>${NM[+m.slice(5)-1]} ${m.slice(0,4)}</option>`).join("")}</optgroup>`
+    + `<option value="" ${sel===""?"selected":""}>Todo el periodo</option>`;
+  if (conectado) $("#dbst").textContent = ultima ? `datos cargados hasta el ${fdate(ultima)}` : "sin datos cargados";
+  renderDias(sel);
+  const p = rows.filter(inMes), g = p.filter(gestionables);
+  const n = s => g.filter(r => r.estado === s).length;
+  const fin = n("Finalizado"), pn = n(""), pl = n("En planificación"), pr = n("En proceso");
+  const inc = p.filter(r => r.est <= 3).length, alt = p.filter(r => r.est >= 4).length;
+  // porcentajes con resto mayor: los de un mismo grupo suman exactamente 100%
+  const pct100 = (vals, tot) => { if (!tot) return vals.map(() => 0);
+    const raw = vals.map(v => v*1000/tot), out = raw.map(Math.floor);
+    let rest = 1000 - out.reduce((a,b) => a+b, 0);
+    raw.map((v,i) => [v - out[i], i]).sort((a,b) => b[0]-a[0]).forEach(([f,i]) => { if (rest > 0 && f > 1e-9) { out[i]++; rest--; } });
+    return out.map(x => x/10); };
+  const sm = v => `<small>${String(Number.isInteger(v) ? v : v.toFixed(1)).replace(".", ",")}%</small>`;
+  const [pAlt, pInc] = pct100([alt, inc], p.length);
+  const [pPn, pPl, pPr, pFin] = pct100([pn, pl, pr, fin], g.length);
+  const cell = (l, v, c) => `<div class="kpi ${c||""}"><div class="n">${v}</div><div class="l">${l}</div></div>`;
+  $("#kpis").innerHTML = `<div class="kg" style="grid-column:span 3">Evaluaciones de pasajeros</div><div class="kg" style="grid-column:span 4">Estado del plan de acción o acción correctiva</div>`
+    + cell("Total de evaluaciones", p.length + " " + sm(p.length ? 100 : 0)) + cell("Calificaciones 4-5★", alt + " " + sm(pAlt)) + cell("Calificaciones 1-3★", inc + " " + sm(pInc))
+    + cell("Pendiente", pn + " " + sm(pPn), "sep" + (pn ? " hot" : "")) + cell("En planificación", pl + " " + sm(pPl)) + cell("En proceso", pr + " " + sm(pPr)) + cell("Finalizados", fin + " " + sm(pFin));
+  const tot = g.length || 1;
+  $("#bar").innerHTML = [[fin,"var(--sky)"],[pr,"#6f9bf2"],[pl,"#b9cdf8"],[pn,"transparent"]].map(([v,c]) => `<i style="width:${v*100/tot}%;background:${c}"></i>`).join("");
+  const porNot = rows.filter(r => gestionables(r) && r.estado === "").length;
+  document.querySelectorAll(".tab").forEach(b => { b.setAttribute("aria-selected", b.dataset.t === tab);
+    if (b.dataset.t === "correos") b.innerHTML = `Correos${porNot ? `<span class="c">${grupos("").length}</span>` : ""}`; });
+}
+
+// ---------- pestaña Casos ----------
+function filtrados() {
+  const q = norm(F.q);
+  return rows.filter(r => gestionables(r) && inMes(r)
+    && (F.estado === "todos" || (F.estado === "abiertos" ? r.estado !== "Finalizado" : stLabel(r.estado) === F.estado))
+    && (!F.area || r.area === F.area) && (!F.tipo || r.tipoInc === F.tipo)
+    && (!q || norm([r.ruta,r.cond,r.dni,r.coment,r.unidad,r.plan].join(" ")).includes(q))).reverse();
+}
+function opts(list, sel, all) { return (all ? `<option value="">${all}</option>` : "") + list.map(v => `<option ${v===sel?"selected":""}>${esc(v)}</option>`).join(""); }
+// ---------- Dashboard de alertas ----------
+const esSupply = r => norm(r.area).startsWith("supply");
+const esFatiga = t => norm(t).includes("fatiga");
+function ventana() {
+  let [a, b] = rango(); const maxF = rows.reduce((m, r) => r.fecha > m ? r.fecha : m, "");
+  if (b === "9999" || b > maxF) b = maxF || b;
+  if (DV === "per") return [a, b];
+  if (DV === "all") return ["", b];
+  return [addD(b, -(+DV) + 1), b];
+}
+function agrupar(L, key) {
+  const m = new Map(); L.forEach(r => { const k = key(r); if (!k) return; if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
+  return [...m.values()].map(c => c.sort((x, y) => y.fecha.localeCompare(x.fecha)));
+}
+function nivel(c) {
+  const fat = c.some(r => esFatiga(r.tipoInc));
+  if (c.length >= 3 || fat) return {k:"c", t: fat && c.length < 3 ? "Crítico · fatiga" : "Crítico"};
+  return {k:"a", t:"Atención"};
+}
+function renderDash() {
+  const [a, b] = ventana(); const W = rows.filter(r => r.fecha >= a && r.fecha <= b);
+  const I = W.filter(gestionables);
+  const tipos = c => [...new Set(c.map(r => r.tipoInc).filter(Boolean))];
+  const abiertos = c => c.filter(r => r.estado !== "Finalizado").length;
+  const ord = (x, y) => (nivel(y).k === "c") - (nivel(x).k === "c") || y.length - x.length || y[0].fecha.localeCompare(x[0].fecha);
+  const S = I.filter(esSupply);   // solo lo atribuible al conductor/unidad (área Supply); lo de rutas no cuenta
+  const C = agrupar(S, r => norm(r.cond) || (r.unidad ? "u" + r.unidad : "")).filter(c => c.length >= 2 || c.some(r => esFatiga(r.tipoInc))).sort(ord);
+  const P = agrupar(I, r => (r.dni && r.dni !== "x") ? String(r.dni) : "").filter(c => c.length >= 2).sort(ord);
+  const fat = I.filter(r => esFatiga(r.tipoInc)).length;
+  const cuenta = f => { const m = {}; I.forEach(r => { const k = f(r) || "Sin dato"; m[k] = (m[k]||0) + 1; }); return Object.entries(m).sort((x, y) => y[1] - x[1]); };
+  const barras = E => { const mx = Math.max(1, ...E.map(e => e[1])); return E.length ? E.map(([k, v]) => `<div><span>${esc(k)}</span><i style="width:${Math.max(4, v*100/mx)}%"></i><b>${v}</b></div>`).join("") : `<div class="empty" style="padding:16px">Sin incidencias en la ventana.</div>`; };
+  const casosTab = c => `<tr class="sub2"><td colspan="8"><table><thead><tr><th>Fecha</th><th>Ruta</th><th>Conductor</th><th>Pasajero</th><th>★</th><th>Tipo de incidencia</th><th>Comentario del pasajero</th><th>Estado</th></tr></thead><tbody>
+    ${c.map(r => `<tr><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td>${esc(r.unidad ? r.unidad + " · " : "")}${esc(r.cond)}</td><td class="nw">${esc(r.dni)}</td><td class="num">${r.est}</td><td>${esc(r.tipoInc)}</td><td>${esc(r.coment)}</td><td><span class="chip ${stClass(r.estado)}">${stLabel(r.estado)}</span></td></tr>`).join("")}</tbody></table></td></tr>`;
+  const fila = (id, c, cols) => { const n = nivel(c); const o = dOpen === id;
+    return `<tr class="row" data-dash="${esc(id)}"><td><span class="lv lv-${n.k}">${n.t}</span></td>${cols}<td class="num"><b>${c.length}</b></td><td>${tipos(c).map(t => `<span class="tg">${esc(t)}</span>`).join("")}</td><td class="nw">${fdate(c[0].fecha)}</td><td class="num">${abiertos(c) || "—"}</td><td class="add">${o ? "Ocultar" : "Ver casos"}</td></tr>${o ? casosTab(c) : ""}`; };
+  const mas = (k, n) => n > 10 ? `<div style="padding:10px 16px"><button class="btn sm" data-dall="${k}">${dAll[k] ? "Mostrar solo los 10 primeros" : `Ver todos (${n})`}</button></div>` : "";
+  const opts = [["per","Periodo seleccionado"],["30","Últimos 30 días"],["60","Últimos 60 días"],["90","Últimos 90 días"],["all","Todo el historial"]];
+  return `<div class="filters"><div style="grid-column:span 2"><label for="dv">Ventana para medir reincidencia</label><select id="dv">${opts.map(([v,l]) => `<option value="${v}" ${DV===v?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div style="grid-column:span 3;align-self:end;font-size:13px;color:var(--mut)">Del ${a ? fdate(a) : "inicio"} al ${fdate(b)} · ${W.length} evaluaciones · ${I.length} incidencias (1-3★ y 4-5★ con queja). Reincidencia = 2 o más incidencias; crítico = 3 o más o un caso de fatiga.</div></div>
+  <div class="dk">
+    <div><div class="n ${C.length?"r":""}">${C.length}</div><div class="l">Conductores en alerta</div><div class="h">${C.filter(c => nivel(c).k === "c").length} críticos · ${S.length} incidencias de Supply</div></div>
+    <div><div class="n ${P.length?"r":""}">${P.length}</div><div class="l">Pasajeros con incidencias repetidas</div><div class="h">${P.reduce((s, c) => s + c.length, 0)} incidencias</div></div>
+    <div><div class="n ${fat?"r":""}">${fat}</div><div class="l">Casos de fatiga y somnolencia</div><div class="h">siempre alerta crítica</div></div>
+    <div><div class="n">${I.length}</div><div class="l">Incidencias en la ventana</div><div class="h">${abiertos(I)} sin finalizar</div></div>
+  </div>
+  <div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Reincidencia por conductor</h3><span>${C.length} conductor(es) · solo incidencias del área Supply (conductor y unidad); las de planificación de rutas no se atribuyen al conductor</span></div>
+  ${C.length ? `<div class="scroll"><table><thead><tr><th>Alerta</th><th>Conductor</th><th>Unidad</th><th>Flota</th><th>Incidencias</th><th>Tipos de incidencia</th><th>Última</th><th>Sin finalizar</th><th></th></tr></thead><tbody>
+  ${C.slice(0, dAll.c ? 1e9 : 10).map(c => fila("c:" + norm(c[0].cond || c[0].unidad), c, `<td><b>${esc(c[0].cond || "Sin nombre")}</b></td><td class="num">${esc([...new Set(c.map(r => r.unidad).filter(Boolean))].join(", "))}</td><td class="nw">${esc([...new Set(c.map(flotaDe).filter(Boolean))].join(", "))}</td>`)).join("")}</tbody></table></div>${mas("c", C.length)}` : `<div class="empty">Ningún conductor con reincidencia en esta ventana.</div>`}</div>
+  <div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Pasajeros con incidencias repetidas</h3><span>${P.length} pasajero(s)</span></div>
+  ${P.length ? `<div class="scroll"><table><thead><tr><th>Alerta</th><th>Pasajero (DNI)</th><th>Conductores</th><th>Rutas</th><th>Incidencias</th><th>Tipos de incidencia</th><th>Última</th><th>Sin finalizar</th><th></th></tr></thead><tbody>
+  ${P.slice(0, dAll.p ? 1e9 : 10).map(c => { const cs = [...new Set(c.map(r => r.cond).filter(Boolean))]; const mismo = cs.length === 1 && c.length > 1;
+    return fila("p:" + c[0].dni, c, `<td class="nw"><b>${esc(c[0].dni)}</b></td><td>${esc(cs.join(", "))}${mismo ? ` <span class="tg" style="color:var(--red)">mismo conductor</span>` : ""}</td><td class="num">${new Set(c.map(r => r.ruta)).size}</td>`); }).join("")}</tbody></table></div>${mas("p", P.length)}` : `<div class="empty">Ningún pasajero con más de una incidencia en esta ventana.</div>`}</div>
+  <div class="dgrid">
+    <div class="panel"><div class="ph"><h3>Incidencias por tipo</h3><span>${I.length}</span></div><div class="hb">${barras(cuenta(r => r.tipoInc))}</div></div>
+    <div class="panel"><div class="ph"><h3>Incidencias por flota</h3><span>${flota.n ? "según Reporte de Conductores" : "carga la flota con «Importar flota»"}</span></div><div class="hb">${barras(cuenta(flotaDe))}</div></div>
+  </div>`;
+}
+function renderCasos() {
+  const L = filtrados();
+  const areas = (cfg.areas||DEF_AREAS).map(a => a.area);
+  const tipos = [...K.prio, "Sin detalle"];
+  return `<div class="filters">
+    <div><label for="fe">Estado</label><select id="fe" data-f="estado">${[["abiertos","Abiertos"],["todos","Todos"],["Pendiente","Pendiente"],...ST.map(s=>[s,s])].map(([v,l])=>`<option value="${v}" ${F.estado===v?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div><label for="fa">Área responsable</label><select id="fa" data-f="area">${opts(areas, F.area, "Todas")}</select></div>
+    <div><label for="ft">Tipo de incidencia</label><select id="ft" data-f="tipo">${opts(tipos, F.tipo, "Todos")}</select></div>
+    <div style="grid-column:span 2"><label for="fq">Buscar</label><input id="fq" type="text" data-f="q" value="${esc(F.q)}" placeholder="Ruta, conductor, DNI, comentario…"></div>
+  </div>
+  ${barraIA(L)}
+  <div class="panel">${L.length ? `<table class="stack"><thead><tr><th>Fecha</th><th>Ruta</th><th>Conductor</th><th>★</th><th>Tipo de incidencia</th><th>Caso</th><th>Área</th><th>Plan de acción</th><th>Estado</th></tr></thead><tbody>
+  ${L.map(r => `<tr class="row" data-id="${esc(r.id)}"><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td>${esc(r.unidad ? r.unidad+" · " : "")}${esc(r.cond)}</td>
+    <td class="stars">${"★".repeat(r.est)}<span class="tag ${r.tipoReg===LI?"tr-i":"tr-a"}">${r.tipoReg===LI?"1-3★":"4-5★ con queja"}</span></td>
+    <td>${r.tipoInc==="Seguridad vial"||/somnolencia/.test(r.tipoInc)?'<span class="dot"></span>':""}${esc(r.tipoInc)}</td><td class="caso">${esc(r.caso) || `<span class="note">${esc(r.subt)}</span>`}</td><td>${esc(r.area)}</td><td class="plan">${r.plan ? esc(r.plan.length > 90 ? r.plan.slice(0,90)+"…" : r.plan) : `<span class="add">+ Agregar plan</span>`}</td><td><span class="chip ${stClass(r.estado)}">${stLabel(r.estado)}</span></td></tr>
+    ${open === r.id ? editor(r) : ""}`).join("")}</tbody></table>` : `<div class="empty">${rows.length ? "No hay casos con estos filtros." : "Todavía no hay datos. Usa “Importar descarga” para cargar el archivo de Llegando."}</div>`}</div>
+  <p class="note">${L.length} caso(s). Haz clic en un caso para ver el comentario completo y registrar la gestión, o en “+ Agregar plan” para escribir directamente el plan de acción.</p>`;
+}
+function editor(r) {
+  const areas = (cfg.areas||DEF_AREAS).map(a => a.area);
+  return `<tr class="ed"><td colspan="9"><div class="edgrid">
+    <div class="w4"><label class="note">Comentario del pasajero · DNI ${esc(r.dni)} · ${esc(r.tipoReg)}</label><div class="quote">${esc(r.coment) || "<i>Sin comentario</i>"}</div></div>
+    <div class="f"><label for="e_tipo">Tipo de incidencia</label><select id="e_tipo">${opts([...K.prio,"Sin detalle"], r.tipoInc)}</select></div>
+    <div class="f w2"><label for="e_caso">Caso (resumen de la queja)</label><input id="e_caso" type="text" value="${esc(r.caso)}" placeholder="Ej.: unidad no cuenta con aire acondicionado"></div>
+    <div class="f w4"><label for="e_subt">Subtipos relacionados</label><input id="e_subt" type="text" value="${esc(r.subt)}"></div>
+    <div class="f"><label for="e_estado">Estado</label><select id="e_estado"><option value="">Pendiente</option>${opts(ST, r.estado)}</select></div>
+    <div class="f w2"><label for="e_area">Área responsable</label><select id="e_area">${opts(areas, r.area)}</select></div>
+    <div class="f"><label for="e_resp">Responsable</label><input id="e_resp" type="text" value="${esc(r.resp)}"></div>
+    <div class="f"><label for="e_fini">Fecha inicio</label><input id="e_fini" type="date" value="${esc(r.fini)}"></div>
+    <div class="f w2"><label for="e_plan">Plan de acción (respuesta del área)</label><textarea id="e_plan">${esc(r.plan)}</textarea></div>
+    <div class="f w2"><label for="e_cdir">Comentario de Directo (para el cliente)</label><textarea id="e_cdir" placeholder="Ej.: el conductor aprobó el refuerzo / la unidad inspeccionada cumple con los requerimientos.">${esc(r.cdir)}</textarea></div>
+    <div class="f"><label for="e_ffin">Fecha fin</label><input id="e_ffin" type="date" value="${esc(r.ffin)}"></div>
+    <div class="f"><label for="e_fcont">1er contacto con el cliente</label><input id="e_fcont" type="date" value="${esc(r.fcont)}"></div>
+    <div class="f"><label for="e_fcierre">Cierre con el cliente</label><input id="e_fcierre" type="date" value="${esc(r.fcierre)}"></div>
+  </div><div class="row2"><button class="btn sm" data-act="cerrar">Cerrar</button><button class="btn sm pri" data-act="guardar" data-id="${esc(r.id)}">Guardar</button></div></td></tr>`;
+}
+// ---------- Caso con IA ----------
+let sample = null, iaBusy = false, iaMsg = "";
+const SUBS = K.cat.map(c => c[1]);
+function barraIA(L) {
+  if (!sample) return "";
+  const pend = L.filter(r => !r.caso);
+  return `<div class="ia"><button class="btn sm pri" data-act="ia" ${pend.length && !iaBusy ? "" : "disabled"}>${iaBusy ? "Generando…" : `Generar “Caso” con IA (${pend.length})`}</button><span class="note">${esc(iaMsg || "Claude lee el comentario y resume la queja en una frase corta, eligiendo solo los subtipos relacionados.")}</span></div>`;
+}
+async function generarCasos() {
+  const pend = filtrados().filter(r => !r.caso);
+  if (!pend.length || !sample) return;
+  iaBusy = true; let hechos = 0;
+  try {
+    for (let i = 0; i < pend.length; i += 20) {
+      const lote = pend.slice(i, i+20);
+      iaMsg = `Procesando ${i+1}–${i+lote.length} de ${pend.length}…`; render();
+      const prompt = `Eres analista de calidad de un servicio de taxi corporativo. Para cada evaluación de pasajero, escribe "caso": un resumen breve (máximo 8 palabras, en español, sin nombres propios) SOLO del problema que reporta el pasajero; ignora elogios y menciones que no son queja. Si solo hay etiquetas, redacta la etiqueta en lenguaje natural (p. ej. "Conducción imprudente"). Además elige en "subtipos" únicamente los de esta lista que correspondan de verdad a la queja: ${JSON.stringify(SUBS)}.
+Responde solo con un arreglo JSON: [{"id":"...","caso":"...","subtipos":["..."]}].
+Evaluaciones:
+${JSON.stringify(lote.map(r => ({id:r.id, estrellas:r.est, tipo:r.tipoInc, comentario:r.coment})))}`;
+      const out = await sample.json(prompt, {modelTier:"quick"});
+      const arr = Array.isArray(out) ? out : [];
+      for (const o of arr) {
+        const r = lote.find(x => x.id === String(o.id)); if (!r || !o.caso) continue;
+        const subs = (Array.isArray(o.subtipos) ? o.subtipos : []).map(String).filter(x => SUBS.includes(x));
+        const g = {...(gest[r.id]||{}), caso:String(o.caso).slice(0,120), ...(subs.length ? {subt:subs.join("; ")} : {})};
+        if (await escribir("gestion/"+r.id, g)) hechos++;
+      }
+    }
+    iaMsg = `Listo: ${hechos} caso(s) resumidos. Puedes corregir cualquiera abriendo el caso.`;
+  } catch (e) {
+    iaMsg = e.code === "not_granted" ? "No se dio permiso para usar Claude en esta página." : e.code === "rate_limited" ? "Se alcanzó el límite de uso por ahora; intenta más tarde." : "No se pudo generar: " + (e.message || e.code);
+    if (e.code === "not_granted" || e.code === "sampling_disabled") sample = null;
+  }
+  iaBusy = false; render();
+}
+async function guardarCaso(id) {
+  const g = {...(gest[id]||{}), tipoInc:$("#e_tipo").value, subt:$("#e_subt").value.trim(), caso:$("#e_caso").value.trim(), area:$("#e_area").value,
+    resp:$("#e_resp").value.trim(), plan:$("#e_plan").value.trim(), fini:$("#e_fini").value, estado:$("#e_estado").value,
+    ffin:$("#e_ffin").value, cdir:$("#e_cdir").value.trim(), fcont:$("#e_fcont").value, fcierre:$("#e_fcierre").value};
+  if (g.estado === "Finalizado" && !g.ffin) g.ffin = today();
+  if (await escribir("gestion/"+id, g)) { open = null; toast("Caso guardado"); }
+}
+// ---------- Flota (Reporte de Conductores) ----------
+let flota = {f:[], m:{}, fecha:"", n:0, archivo:""};
+const movKey = v => { const t = String(v ?? "").trim(); return /^\d+$/.test(t) ? String(+t) : t.toUpperCase(); };
+const flotaDe = r => { const i = flota.m[movKey(r.unidad)]; return i === undefined ? "" : flota.f[i]; };
+async function leerFlota(file) {
+  if (!window.XLSX) { toast("No se pudo cargar la librería de Excel"); return; }
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:false, defval:""});
+    const h = aoa.findIndex(f => f.some(c => norm(c) === "movil") && f.some(c => norm(c) === "flota"));
+    if (h < 0) { toast("No encontré las columnas Móvil y Flota en el archivo"); return; }
+    const H = aoa[h].map(norm), cM = H.indexOf("movil"), cF = H.indexOf("flota"), cE = H.indexOf("estado");
+    const f = [], m = {}, act = {};
+    for (const fila of aoa.slice(h+1)) {
+      const k = movKey(fila[cM]), fl = String(fila[cF] || "").trim(); if (!k || !fl) continue;
+      const activo = cE >= 0 && norm(fila[cE]) === "activo";
+      if (k in m && act[k] && !activo) continue;   // si el móvil se repite, manda el registro Activo
+      let i = f.indexOf(fl); if (i < 0) { f.push(fl); i = f.length-1; }
+      m[k] = i; act[k] = activo;
+    }
+    const n = Object.keys(m).length; if (!n) { toast("El archivo no tiene móviles con flota"); return; }
+    const doc = {f, m, n, fecha: today(), archivo: file.name};
+    $("#dbst").textContent = "guardando flota…";
+    if (await escribir("flota/main", doc)) {
+      flota = doc; const p = rows.filter(r => inMes(r) && r.unidad !== "" && r.unidad != null);
+      const ok = p.filter(r => flotaDe(r)).length;
+      toast(`Flota actualizada: ${n} móviles · ${ok} de ${p.length} evaluaciones del periodo identificadas`); render();
+    }
+  } catch (e) { toast(e.message || "No se pudo leer el archivo de flota"); }
+}
+async function escribir(path, data) {
+  if (!db) { toast("No hay conexión con la base de datos"); return false; }
+  try { await db.doc(path).set(data); return true; }
+  catch (e) { toast(e.code === "invalid_argument" || e.code === "permission-denied" ? "No tienes permiso para editar (pide acceso de colaborador)" : "No se pudo guardar: " + (e.message||e.code)); return false; }
+}
+
+// ---------- pestaña Correos ----------
+function grupos(estado) {
+  const m = new Map();
+  for (const r of rows) if (gestionables(r) && r.estado === estado) {
+    const k = r.ruta + "||" + r.area; if (!m.has(k)) m.set(k, []); m.get(k).push(r);
+  }
+  return [...m.values()];
+}
+function cuerpo(L) {
+  const a = areaCfg(L[0].area) || {};
+  const th = 'style="background:#0a50e6;color:#fff;padding:6px;border:1px solid #999;font-size:12px;text-align:left"', td = 'style="padding:6px;border:1px solid #999;font-size:12px;vertical-align:top"';
+  return `<div style="font-family:Arial;font-size:13px"><p>Estimado(s) ${esc(a.resp||"")}:</p><p>Les compartimos la siguiente incidencia reportada por pasajeros de SKY en la evaluación del servicio. Agradeceremos nos indiquen el <b>plan de acción / acciones correctivas</b> respondiendo este correo <b>sin modificar el asunto</b>.</p>
+  <table style="border-collapse:collapse"><tr>${["Fecha","Ruta","Unidad","Conductor","Pasajero (DNI)","Estrellas","Tipo de incidencia","Caso","Comentario del pasajero"].map(h=>`<th ${th}>${h}</th>`).join("")}</tr>
+  ${L.map(r => `<tr>${[fdate(r.fecha),r.ruta,r.unidad,r.cond,r.dni,r.est,r.tipoInc,r.caso||r.subt,r.coment].map(v=>`<td ${td}>${esc(v)}</td>`).join("")}</tr>`).join("")}</table>
+  <p>Quedamos atentos.</p><p>Saludos cordiales,</p><br></div>`;
+}
+const asunto = L => `Incidencia SKY - Ruta ${L[0].ruta} - ${L[0].tipoInc} [SKY ${L[0].ruta}-${areaCfg(L[0].area)?.codigo||"CC"}]`;
+function textoPlano(L) {
+  const a = areaCfg(L[0].area) || {};
+  return `Estimado(s) ${a.resp||""}:\n\nLes compartimos la siguiente incidencia reportada por pasajeros de SKY en la evaluación del servicio. Agradeceremos nos indiquen el plan de acción / acciones correctivas respondiendo este correo sin modificar el asunto.\n\n`
+    + L.map(r => `Fecha: ${fdate(r.fecha)} | Ruta: ${r.ruta} | Unidad: ${r.unidad} | Conductor: ${r.cond} | Pasajero: ${r.dni} | Estrellas: ${r.est} | ${r.tipoInc} (${r.subt})\nComentario: ${r.coment}`).join("\n\n")
+    + `\n\nQuedamos atentos.\n\nSaludos cordiales,\n`;
+}
+function renderCorreos() {
+  const P = grupos(""), E = [...grupos("En planificación"), ...grupos("En proceso")];
+  const card = (L, i, modo) => { const a = areaCfg(L[0].area) || {};
+    return `<div class="mail"><h3>Ruta ${esc(L[0].ruta)} · ${esc(L[0].tipoInc)} <span class="note">(${L.length} pasajero${L.length>1?"s":""})</span></h3>
+    <div class="meta"><div>Área: <b>${esc(L[0].area)}</b> · Responsable: <b>${esc(a.resp||"")}</b></div>
+    <div>Para: <b>${esc(a.para) || '<span style="color:var(--red)">falta correo en Configuración</span>'}</b>${a.cc ? ` · CC: <b>${esc(a.cc)}</b>` : ""}</div>
+    <div>Asunto: <b>${esc(asunto(L))}</b></div>${modo==="E" ? `<div>Enviado: <b>${fdate(L[0].fini)}</b></div>` : ""}</div>
+    ${modo==="P" ? `<div class="prev" id="pv${i}">${cuerpo(L)}</div>
+    <div class="row2"><button class="btn sm" data-act="cp-para" data-g="${i}">Copiar destinatarios</button><button class="btn sm" data-act="cp-asunto" data-g="${i}">Copiar asunto</button><button class="btn sm" data-act="cp-cuerpo" data-g="${i}">Copiar correo</button><button class="btn sm pri" data-act="enviado" data-g="${i}">Marcar como enviado</button></div>`
+    : `<div class="edgrid"><div class="f"><label for="rf${i}">Fecha de respuesta</label><input id="rf${i}" type="date" value="${today()}"></div>
+       <div class="f w2"><label for="rp${i}">Plan de acción recibido</label><textarea id="rp${i}" placeholder="Pega aquí la respuesta del área">${esc(L[0].plan)}</textarea></div>
+       <div class="f"><label for="rs${i}">Nuevo estado</label><select id="rs${i}">${opts(["Finalizado","En proceso"],"Finalizado")}</select></div></div>
+       <div class="row2"><button class="btn sm pri" data-act="respuesta" data-g="${i}">Registrar respuesta</button></div>`}</div>`; };
+  pending = {P, E};
+  return `<h2>Pendientes de notificar al área (${P.length})</h2><p class="note">Un correo por ruta y área. Copia el correo y pégalo en Outlook (conserva la tabla); al enviarlo, márcalo como enviado: Estado → En planificación y Fecha inicio = hoy.</p>
+  <div class="cards">${P.length ? P.map((L,i) => card(L,i,"P")).join("") : `<div class="panel empty">No hay casos pendientes.</div>`}</div>
+  <h2 style="margin-top:28px">Esperando respuesta (${E.length})</h2><p class="note">Cuando el área responda, pega su respuesta y regístrala: Estado → Finalizado y Fecha fin = fecha de respuesta.</p>
+  <div class="cards">${E.length ? E.map((L,i) => card(L,i,"E")).join("") : `<div class="panel empty">No hay correos esperando respuesta.</div>`}</div>`;
+}
+async function copiar(html, text) {
+  try {
+    if (html && window.ClipboardItem) await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([html],{type:"text/html"}),"text/plain":new Blob([text],{type:"text/plain"})})]);
+    else await navigator.clipboard.writeText(text);
+    toast("Copiado. Pégalo en Outlook con Ctrl + V");
+  } catch { toast("No se pudo copiar automáticamente: selecciona el texto y usa Ctrl + C"); }
+}
+async function marcarGrupo(L, data) {
+  for (const r of L) { if (!(await escribir("gestion/"+r.id, {...(gest[r.id]||{}), area:r.area, resp:r.resp, tipoInc:r.tipoInc, subt:r.subt, ...data}))) return false; }
+  return true;
+}
+
+// ---------- Reporte cliente ----------
+let R0 = "", R1 = "";
+const estCli = s => s === "Finalizado" || s === "En proceso" ? s : "En planificación";
+const REP_H = ["Fecha","Ruta","Unidad","Conductor","Pasajero (DNI)","Calificación (★)","Comentario del pasajero","Tipo de incidencia","Caso","Área responsable","Plan de acción","Fecha de inicio","Estado","Fecha de cierre","Comentario de Directo"];
+function repRows() { return rows.filter(r => gestionables(r) && (!R0 || r.fecha >= R0) && (!R1 || r.fecha <= R1)); }
+function renderReporte() {
+  if (!R0) { const [a,b] = rango(); if (a) { R0 = a; R1 = b; } else { const t = today(); R0 = t.slice(0,8)+"01"; R1 = t; } }
+  const L = repRows(); const c = s => L.filter(r => r.estado === s).length;
+  return `<div class="filters"><div><label for="r0">Desde</label><input id="r0" type="date" value="${R0}"></div><div><label for="r1">Hasta</label><input id="r1" type="date" value="${R1}"></div>
+  <div style="grid-column:span 3;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><button class="btn sm pri" data-act="rep-xlsx" ${L.length?"":"disabled"}>Descargar Excel</button><button class="btn sm" data-act="rep-mail" ${L.length?"":"disabled"}>Copiar correo al cliente</button></div></div>
+  <div class="panel" style="padding:14px 16px;margin-bottom:14px"><b>Comunicación con el cliente</b> <span class="note">· fechas que van a la BD de Calidad (Fecha 1er Contacto y Fecha de Cierre)</span>
+   <div class="edgrid" style="margin-top:10px;align-items:end"><div class="f"><label for="cfecha">Fecha del correo al cliente</label><input id="cfecha" type="date" value="${today()}"></div>
+   <div class="f w2" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn sm" data-act="cli-cont" ${L.filter(r => !r.fcont).length ? "" : "disabled"}>Registrar 1er contacto (${L.filter(r => !r.fcont).length} sin fecha)</button>
+   <button class="btn sm" data-act="cli-cierre" ${L.filter(r => r.estado === "Finalizado" && !r.fcierre).length ? "" : "disabled"}>Registrar cierre de finalizados (${L.filter(r => r.estado === "Finalizado" && !r.fcierre).length})</button></div></div>
+   <p class="note" style="margin:6px 0 0">1er contacto: el correo con el que se responde al cliente al recibir las incidencias. Cierre: el último correo al cliente con el plan de acción de los casos atendidos (solo se marca en los casos Finalizados).</p></div>
+  <p class="note">${L.length} casos gestionados · ${c("Finalizado")} finalizados · ${c("En proceso")} en proceso · ${c("En planificación")+c("")} en planificación (para el cliente, los casos pendientes figuran como En planificación). Para: ${esc(cfg.clientePara) || "configura el correo del cliente"}.</p>
+  <div class="panel scroll">${L.length ? `<table class="stack rep"><thead><tr>${REP_H.map((h,i) => `<th class="${i<7?"p":"d"}">${h}</th>`).join("")}</tr></thead><tbody>
+  ${L.map(r => `<tr><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td class="num">${esc(r.unidad)}</td><td>${esc(r.cond)}</td><td class="nw">${esc(r.dni)}</td><td class="num">${r.est}</td><td>${esc(r.coment)}</td><td>${esc(r.tipoInc)}</td><td class="caso">${esc(r.caso || r.subt)}</td><td>${esc(r.area)}</td><td>${esc(r.plan)}</td><td class="nw">${fdate(r.fini)}</td><td><span class="chip ${stClass(estCli(r.estado))}">${estCli(r.estado)}</span></td><td class="nw">${fdate(r.ffin)}</td><td>${esc(r.cdir)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No hay casos en este periodo.</div>`}</div>`;
+}
+const xser = s => s ? (Date.UTC(+s.slice(0,4), +s.slice(5,7)-1, +s.slice(8,10)) - Date.UTC(1899,11,30)) / 864e5 : "";
+const ST_FILL = {"En planificación":"FFE699","En proceso":"F4B183","Finalizado":"A9D18E"};
+async function descargarXlsx(nombre, headers, data, hoja, estilo) {
+  if (!window.XLSX) { toast("No se pudo cargar la librería de Excel"); return; }
+  if (!dl) { toast("La descarga no está disponible en esta vista"); return; }
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+  headers.forEach((h, c) => { if (/^Fecha/.test(h)) for (let r = 1; r <= data.length; r++) { const x = ws[XLSX.utils.encode_cell({r, c})]; if (x && x.t === "n") x.z = "dd/mm/yyyy"; } });
+  ws["!cols"] = headers.map(h => ({wch: (estilo && estilo.widths && estilo.widths[h]) || (/Comentario|Plan/.test(h) ? 50 : h === "Caso" ? 34 : /Área/.test(h) ? 36 : h.length < 8 || h === "Estado" ? 11 : 18)}));
+  if (estilo) {
+    const brd = {style:"thin", color:{rgb:"BFBFBF"}}, B = {top:brd, bottom:brd, left:brd, right:brd};
+    const iE = headers.indexOf("Estado");
+    const FN = estilo.font || "Arial", SZ = estilo.sz || 10, BB = estilo.noBorder ? {} : B;
+    headers.forEach((h, c) => { const ref = XLSX.utils.encode_cell({r:0, c}); ws[ref].s = {font:{bold: estilo.hdrBold !== false, color:{rgb:"FFFFFF"}, name:FN, sz:SZ}, fill:{fgColor:{rgb: estilo.hdrFill || (estilo.split && c < estilo.split ? "7030A0" : "0000FF")}}, alignment:{vertical:"center", horizontal:"center", wrapText:true}, border:BB}; });
+    for (let r = 1; r <= data.length; r++) for (let c = 0; c < headers.length; c++) {
+      const ref = XLSX.utils.encode_cell({r, c}); if (!ws[ref]) ws[ref] = {t:"s", v:""};
+      const st = {font:{name:FN, sz:SZ, bold: !!(estilo.bold && estilo.bold.includes(headers[c]))}, alignment:{...(estilo.noWrap ? {} : {wrapText:true}), ...(estilo.rowH || estilo.allCenter ? {} : {vertical:"top"}), ...(estilo.allCenter || (estilo.center && estilo.center.includes(headers[c])) ? {horizontal:"center"} : {})}, border:BB};
+      if (c === iE && ST_FILL[ws[ref].v]) { st.fill = {fgColor:{rgb:ST_FILL[ws[ref].v]}}; st.alignment.horizontal = "center"; }
+      ws[ref].s = st;
+    }
+    ws["!rows"] = estilo.rowH ? Array.from({length: data.length + 1}, () => ({hpt: estilo.rowH})) : [{hpt: estilo.hdrH || 30}];
+    ws["!autofilter"] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:data.length, c:headers.length-1}})};
+  }
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, hoja);
+  const buf = XLSX.write(wb, {type:"array", bookType:"xlsx", cellStyles:true});
+  try { await dl.save({filename:nombre, data:new Blob([buf])}); toast("Archivo descargado"); }
+  catch (e) { if (e.code !== "declined") toast("No se pudo descargar: " + (e.message||e.code)); }
+}
+function repXlsx() {
+  const L = repRows();
+  descargarXlsx(`Reporte_Incidencias_SKY_${R0}_${R1}.xlsx`, REP_H,
+    L.map(r => [xser(r.fecha), r.ruta, r.unidad, r.cond, r.dni, r.est, r.coment, r.tipoInc, r.caso || r.subt, r.area, r.plan, xser(r.fini), estCli(r.estado), xser(r.ffin), r.cdir]), "Reporte", {split:7, rowH:32.4, bold:["Tipo de incidencia"], center:["Unidad","Calificación (★)","Fecha de inicio","Estado","Fecha de cierre"],
+      widths:{"Fecha":11.8,"Ruta":11,"Unidad":8.4,"Conductor":18.8,"Pasajero (DNI)":10.6,"Calificación (★)":10.9,"Comentario del pasajero":50.8,"Tipo de incidencia":17.9,"Caso":34.8,"Área responsable":20.7,"Plan de acción":27.8,"Fecha de inicio":14.2,"Estado":11.8,"Fecha de cierre":12.8,"Comentario de Directo":50.8}});
+}
+function repMail() {
+  const L = repRows(); const n = s => L.filter(r => estCli(r.estado) === s).length;
+  const fin = n("Finalizado"), pro = n("En proceso"), pla = n("En planificación");
+  const mot = {}; L.forEach(r => { const k = r.tipoInc || "Sin detalle"; mot[k] = (mot[k]||0) + 1; });
+  const M = Object.entries(mot).sort((a,b) => b[1]-a[1]);
+  const pc = v => L.length ? Math.round(v*100/L.length) + "%" : "0%";
+  const th = 'style="background:#0A50E6;color:#fff;padding:6px 10px;border:1px solid #999;font-size:12px;text-align:left"', td = 'style="padding:6px 10px;border:1px solid #999;font-size:12px"', tdr = 'style="padding:6px 10px;border:1px solid #999;font-size:12px;text-align:right"';
+  const html = `<div style="font-family:Arial;font-size:13px"><p>Estimados:</p><p>Compartimos el reporte de incidencias reportadas por los pasajeros en la evaluación del servicio, del ${fdate(R0)} al ${fdate(R1)}.</p>
+  <table style="border-collapse:collapse"><tr><th ${th}>Casos gestionados</th><th ${th}>En planificación</th><th ${th}>En proceso</th><th ${th}>Finalizados</th></tr>
+  <tr><td ${tdr}><b>${L.length}</b></td><td ${tdr}>${pla}</td><td ${tdr}>${pro}</td><td ${tdr}>${fin}</td></tr></table>
+  <p style="margin:0">&nbsp;</p><p style="margin:0">&nbsp;</p><table style="border-collapse:collapse"><tr><th ${th}>Motivo: Calificación 1-3 estrellas</th><th ${th}>Casos</th></tr>${M.map(([k,v]) => `<tr><td ${td}>${esc(k)}</td><td ${tdr}>${v}</td></tr>`).join("")}</table>
+  <br><p>El detalle de cada caso, junto con su respectivo plan de acción y estado, se encuentra en el archivo adjunto. Quedamos atentos a cualquier consulta o información adicional que requieran.</p><p>Saludos cordiales,</p><br></div>`;
+  const text = `Estimados:\n\nCompartimos el reporte de incidencias reportadas por los pasajeros en la evaluación del servicio, del ${fdate(R0)} al ${fdate(R1)}: ${L.length} casos gestionados, ${pla} en planificación, ${pro} en proceso y ${fin} finalizados.\n\n`
+    + `Motivo: Calificación 1-3 estrellas\n` + M.map(([k,v]) => `- ${k}: ${v}`).join("\n")
+    + `\n\nEl detalle de cada caso, junto con su respectivo plan de acción y estado, se encuentra en el archivo adjunto. Quedamos atentos a cualquier consulta o información adicional que requieran.\n\nSaludos cordiales,\n`;
+  copiar(html, text);
+}
+
+// ---------- BBDD ----------
+function renderBBDD() {
+  const q = norm(F.q2 || ""); const L = rows.filter(r => inMes(r) && (!q || norm([r.ruta,r.cond,r.dni,r.coment,r.tipoReg,r.tipoInc].join(" ")).includes(q)));
+  const N = 100, pages = Math.max(1, Math.ceil(L.length / N)); page = Math.min(page, pages-1);
+  const V = L.slice(page*N, page*N+N);
+  return `<div class="filters"><div style="grid-column:span 3"><label for="q2">Buscar en la BBDD</label><input id="q2" type="text" value="${esc(F.q2||"")}" placeholder="Ruta, conductor, DNI, comentario, tipo…"></div>
+  <div style="grid-column:span 2;display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap"><button class="btn sm pri" data-act="bbdd-xlsx">Descargar BBDD (Excel)</button><button class="btn sm" data-act="bdq-xlsx" title="Casos a gestionar del periodo en el formato de la hoja Data de la BD de Incidencias de Calidad">Formato BD Incidencias Calidad</button><span style="font-size:12px;color:var(--mut)">${flota.n ? `Flota al ${fdate(flota.fecha)} · ${flota.n} móviles` : "Flota sin cargar: usa «Importar flota»"}</span></div></div>
+  <div class="panel scroll"><table class="stack"><thead><tr><th>Fecha</th><th>Ruta</th><th>Unidad</th><th>Flota</th><th>Conductor</th><th>DNI</th><th>★</th><th>Tipo registro</th><th>Comentario pasajero</th><th>Tipo de incidencia</th><th>Área</th><th>Estado</th></tr></thead><tbody>
+  ${V.map(r => `<tr><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td class="num">${esc(r.unidad)}</td><td class="nw">${esc(flotaDe(r))}</td><td>${esc(r.cond)}</td><td class="nw">${esc(r.dni)}</td><td class="num">${r.est}</td><td class="${r.tipoReg===LI?"tr-i":r.tipoReg===LA?"tr-a":""}">${esc(r.tipoReg)}</td><td>${esc(r.coment)}</td><td>${esc(r.tipoInc)}</td><td>${esc(r.area)}</td><td>${gestionables(r) ? `<span class="chip ${stClass(r.estado)}">${stLabel(r.estado)}</span>` : ""}</td></tr>`).join("")}
+  </tbody></table><div class="pager"><span>${L.length} evaluaciones · página ${page+1} de ${pages}</span><span><button class="btn sm" data-act="prev" ${page?"":"disabled"}>Anterior</button> <button class="btn sm" data-act="next" ${page<pages-1?"":"disabled"}>Siguiente</button></span></div></div>`;
+}
+// ---------- Formato BD Incidencias Calidad (hoja Data / Tabla1) ----------
+const BDQ_H = ["Atendido por:","Fecha en que recibo la incidencia","Canal de comunicación","N° Tickets","Fecha de la incidencia","Unidad de Negocio","Hora del Servicio","Modo de Reserva","Tipo de Petición","IdServicio","Tipo Cliente","Nombre del usuario afectado","Nombre de la empresa afectada","Flota","N° Móvil","Nombre del Conductor","Descripción inicial de la incidencia (descargo usuario afectado)","Descripción de la investigación interna (resumen)","Área responsable","Tipo de Incidencia","Severidad","Resumen de Incidencia","Caso","Causa","Acción correctiva Conductor / Operación","Acción correctiva de cara al Cliente","Resumen - Comercial","Fecha 1er Contacto","Fecha de Cierre","Estatus","Días de respuesta","Mes","Semana","Columna1"];
+function tipologia(r) {   // tipo de incidencia de Directo -> tipología de la BD de Calidad
+  const t = r.tipoInc, sub = norm(r.subt + " " + r.caso);
+  if (t === "Conductor con posibles signos de fatiga y somnolencia" || (t === "Seguridad vial" && /somnol|cansan|dorm/.test(sub))) return ["Conductor con posibles signos de  fatiga y somnolencia", "Falta de refuerzo del test de somnolencia"];
+  if (t === "Seguridad vial") return ["Conductor no cumple con protocolo de seguridad víal", "Falta de refuerzo del plan de prevención de accidentes de tránsito"];
+  if (t === "Trato del conductor" || t === "Protocolo de servicio" || t === "Navegación del conductor") return ["Conductor no cumple con protocolo de atencion al cliente", "Falta de refuerzo del protocolo de atención del conductor"];
+  if (t === "Climatización" || t === "Estado del vehículo") return ["Unidad sin condiciones para atención", "Reforzar la inspección de unidades"];
+  if (t === "Planificación de ruta") return ["Error en planificación", "Error en planificación de ruta"];
+  if (t === "Puntualidad") return ["Tardanza con servicio realizado", ""];
+  return ["", ""];
+}
+const areaBD = a => /^Supply/.test(a) ? "Supply" : /The Optimal/.test(a) ? "The Optimal" : /^Planificaci/.test(a) ? "Planificación" : /Customer/.test(a) ? "Customer Care" : a;
+function bdqXlsx() {
+  const L = rows.filter(r => gestionables(r) && inMes(r));
+  if (!L.length) { toast("No hay casos a gestionar en este periodo"); return; }
+  descargarXlsx(`BD_Incidencias_SKY${F.mes ? "_"+rango().join("_al_") : ""}.xlsx`, BDQ_H, L.map(r => { const [tipo, causa] = tipologia(r); return [
+    "Jorge", xser(r.fecha), r.tipoReg === LI ? "Calificación 1-3 estrellas" : "OMW", "", xser(r.fecha), "Sky", "", "Routing", "Reserva",
+    r.ruta, "Aerolínea", r.dni, "Sky Airlines", flotaDe(r), r.unidad, r.cond, r.coment, "", areaBD(r.area), tipo, "", tipo ? "Inconformidad con el svc realizado" : "",
+    r.caso || r.subt, causa, r.cdir, r.plan, "", xser(r.fcont), xser(r.fcierre), "", "", "", "", ""]; }), "Data",
+    {hdrFill:"002060", hdrBold:false, font:"Calibri", sz:11, allCenter:true, noBorder:true, noWrap:true, hdrH:45.6,
+     widths:{"Atendido por:":18.8,"Flota":11.8,"N° Móvil":18.8,"Área responsable":36.8,"Tipo de Incidencia":18.8,"Caso":34.8,"Causa":38,"Acción correctiva Conductor / Operación":45.3,"Acción correctiva de cara al Cliente":18.8,"Estatus":11.8,"Días de respuesta":18.8,"Mes":11.8,"Columna1":18.8}});
+}
+function bbddXlsx() {
+  const L = rows.filter(inMes);
+  descargarXlsx(`BBDD_Incidencias_SKY${F.mes ? "_"+rango().join("_al_") : ""}.xlsx`, COLS,
+    L.map(r => [xser(r.fecha), r.ruta, r.unidad, r.cond, r.dni, r.est, r.tipoReg, r.coment, r.tipoInc, r.subt, r.caso, r.area, r.resp, r.plan, xser(r.fini), r.estado, xser(r.ffin), r.cdir]), "BBDD", {split:8});
+}
+
+// ---------- Configuración ----------
+function renderConfig() {
+  const A = cfg.areas || DEF_AREAS;
+  return `<h2>Áreas responsables</h2><p class="note">Correo Para y CC de cada área (varios correos separados por punto y coma). El código va en el asunto para reconocer la respuesta.</p>
+  <div class="panel scroll"><table class="cfg stack"><thead><tr><th>Área</th><th>Código</th><th>Responsable</th><th>Correo Para</th><th>Correo CC</th></tr></thead><tbody>
+  ${A.map((a,i) => `<tr><td>${esc(a.area)}</td><td><input type="text" id="c_cod${i}" value="${esc(a.codigo)}"></td><td><input type="text" id="c_resp${i}" value="${esc(a.resp)}"></td><td><input type="text" id="c_para${i}" value="${esc(a.para)}"></td><td><input type="text" id="c_cc${i}" value="${esc(a.cc)}"></td></tr>`).join("")}
+  </tbody></table></div>
+  <h2 style="margin-top:24px">Reporte al cliente</h2><div class="edgrid"><div class="f w2"><label for="c_cp">Correo cliente (Para)</label><input id="c_cp" type="text" value="${esc(cfg.clientePara)}"></div>
+  <div class="f w2"><label for="c_cc">Correo cliente (CC)</label><input id="c_cc" type="text" value="${esc(cfg.clienteCc)}"></div>
+</div>
+  <p class="note">Los correos terminan en "Saludos cordiales," para que Outlook agregue la firma de cada ejecutivo.</p>
+  <div class="row2"><button class="btn pri" data-act="cfg-save">Guardar configuración</button></div>
+  <h2 style="margin-top:24px">Respaldo de datos</h2><p class="note">Descarga toda la base (evaluaciones, gestión de casos, flota y configuración) en un archivo JSON, o restaura un respaldo. Sirve para pasar los datos del gestor de Claude a la versión de GitHub, o al revés. Restaurar no borra nada: agrega o reemplaza los registros del archivo.</p>
+  <div class="row2" style="justify-content:flex-start"><button class="btn" data-act="bk-exp">Exportar respaldo (JSON)</button><label class="btn" for="bfile">Restaurar respaldo</label><input id="bfile" type="file" accept=".json" hidden></div>`;
+}
+async function exportarRespaldo() {
+  const data = {version:1, exportado:new Date().toISOString(), dias, gestion:gest, flota, config:cfg};
+  if (!dl) { toast("La descarga no está disponible en esta vista"); return; }
+  try { await dl.save({filename:`respaldo_incidencias_sky_${today()}.json`, data:new Blob([JSON.stringify(data)], {type:"application/json"})}); toast("Respaldo descargado"); }
+  catch (e) { toast("No se pudo descargar: " + (e.message||e.code)); }
+}
+async function restaurarRespaldo(file) {
+  let d; try { d = JSON.parse(await file.text()); } catch { toast("El archivo no es un respaldo válido"); return; }
+  if (!d || !d.dias || !d.gestion) { toast("El archivo no es un respaldo del gestor"); return; }
+  const docs = [...Object.entries(d.dias).map(([k,v]) => ["dias/"+k, v]), ...Object.entries(d.gestion).map(([k,v]) => ["gestion/"+k, v])];
+  if (d.flota && d.flota.n) docs.push(["flota/main", d.flota]);
+  if (d.config && Object.keys(d.config).length) docs.push(["config/main", d.config]);
+  let n = 0; for (const [path, v] of docs) { $("#dbst").textContent = `restaurando ${++n} de ${docs.length}…`; if (!(await escribir(path, v))) return; }
+  toast(`Respaldo restaurado: ${Object.keys(d.dias).length} días y ${Object.keys(d.gestion).length} casos`);
+}
+async function guardarConfig() {
+  const A = (cfg.areas || DEF_AREAS).map((a,i) => ({area:a.area, codigo:$("#c_cod"+i).value.trim(), resp:$("#c_resp"+i).value.trim(), para:$("#c_para"+i).value.trim(), cc:$("#c_cc"+i).value.trim()}));
+  if (await escribir("config/main", {areas:A, clientePara:$("#c_cp").value.trim(), clienteCc:$("#c_cc").value.trim(), firma:cfg.firma||""})) toast("Configuración guardada");
+}
+
+// ---------- Importar descarga de Llegando ----------
+function txt(v) { if (v == null) return ""; if (v instanceof Date) return v.toISOString().slice(0,10); return String(v).replace(/[\r\n\t]+/g," ").trim(); }
+function parseFecha(v) {
+  if (v instanceof Date) return v.getFullYear()+"-"+String(v.getMonth()+1).padStart(2,"0")+"-"+String(v.getDate()).padStart(2,"0");
+  const s = txt(v).split(" ")[0].replace(/\//g,"-"); const p = s.split("-");
+  if (p.length !== 3) return "";
+  return p[0].length === 4 ? `${p[0]}-${p[1].padStart(2,"0")}-${p[2].padStart(2,"0")}` : `${p[2]}-${p[1].padStart(2,"0")}-${p[0].padStart(2,"0")}`;
+}
+const safe = s => s.replace(/[^A-Za-z0-9_\-.~:@+]/g, "-");
+const titulo = s => s.toLowerCase().replace(/(^|[^a-záéíóúñü])([a-záéíóúñü])/g, (m,a,b) => a + b.toUpperCase());
+function parseLlegando(aoa) {
+  let h = -1;
+  for (let r = 0; r < Math.min(30, aoa.length); r++) { const n = (aoa[r]||[]).map(c => norm(txt(c))); if (n.includes("stars") && n.some(x => x.startsWith("ruta"))) { h = r; break; } }
+  if (h < 0) throw new Error("No encontré los encabezados (Ruta / stars) en el archivo.");
+  const H = aoa[h].map(c => norm(txt(c))); const col = f => H.findIndex(f);
+  const cD = col(x => x.startsWith("dia") || x.startsWith("fecha")), cR = col(x => x.startsWith("ruta")), cP = col(x => x.startsWith("dispositivo")),
+        cN = col(x => x === "nid"), cC = col(x => x.startsWith("comentario")), cS = col(x => x === "stars");
+  const out = []; let cur = null, dia = "", ruta = "", disp = "", stars = -1;
+  const push = () => { if (!cur || cur.est < 1) return;
+    const m = /^(\d+)_(.*)$/.exec(cur.disp); const unidad = m ? +m[1] : ""; const cond = titulo((m ? m[2] : cur.disp).replace(/_/g," ").trim());
+    out.push({fecha:parseFecha(cur.dia), ruta:cur.ruta, unidad, cond, dni:cur.nid, est:cur.est, texto:cur.tx.join(" | "), etiq:cur.et}); };
+  for (let r = h+1; r < aoa.length; r++) {
+    const row = aoa[r] || []; const g = c => c >= 0 ? row[c] : null;
+    const vD = g(cD), vR = txt(g(cR)), vP = txt(g(cP)), vN = txt(g(cN)), vC = txt(g(cC)), vS = txt(g(cS));
+    if (!(txt(vD) || vR || vP || vN || vC || vS)) continue;
+    const st = /^\d+$/.test(vS) ? +vS : stars;
+    if (txt(vD)) dia = vD;
+    if (vR || vN || st !== stars || !cur) {
+      push();
+      if (vR) { ruta = vR; disp = vP; } else if (vP) disp = vP;
+      stars = st; cur = {dia, ruta, disp, nid:vN, est:st, et:[], tx:[]};
+    }
+    if (vC && !((vC.length <= 2 && /[^A-Za-z]/.test(vC)) || norm(vC) === "n/a")) {
+      const L = (vC.startsWith("[") || POS.has(norm(vC))) ? cur.et : cur.tx; if (!L.includes(vC)) L.push(vC);
+    }
+  }
+  push();
+  return out;
+}
+function prepararImport(evs) {
+  const keys = new Set(), ids = new Set();
+  for (const r of rows) { ids.add(r.id); keys.add(r.id.replace(/-\d+$/,"") + "|" + norm(r.coment).slice(0,40)); }
+  const nuevas = []; let dup = 0;
+  for (const e of evs) {
+    if (!e.fecha) continue;
+    const base = safe(`${e.fecha}_${e.ruta||"sinruta"}_${e.dni||"x"}_${e.est}`);
+    const coment = [e.texto, e.etiq.join(" | ")].filter(Boolean).join(" | ");
+    const k = base + "|" + norm(coment).slice(0,40);
+    if (keys.has(k)) { dup++; continue; }
+    keys.add(k); let id = base, n = 2; while (ids.has(id)) id = `${base}-${n++}`; ids.add(id);
+    nuevas.push({...e, id});
+  }
+  return {nuevas, dup};
+}
+let imp = null;
+async function leerArchivo(file) {
+  if (!window.XLSX) { toast("No se pudo cargar la librería de Excel"); return; }
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellDates:true});
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true, defval:null});
+    const evs = parseLlegando(aoa); const {nuevas, dup} = prepararImport(evs);
+    const cls = nuevas.map(e => ({e, c:classify(e.est, e.etiq, e.texto)}));
+    imp = {nombre:file.name, nuevas, dup, nInc:cls.filter(x => x.e.est <= 3).length, nAle:cls.filter(x => x.e.est > 3 && x.c.tipo).length};
+    tab = "casos"; render();
+  } catch (e) { toast(e.message || "No se pudo leer el archivo"); }
+}
+function renderImport() {
+  if (!imp) return "";
+  const n = imp.nuevas.length;
+  return `<div class="drop"><b>${esc(imp.nombre)}</b> · ${n} evaluaciones nuevas (${imp.nInc} de 1-3★, ${imp.nAle} de 4-5★ con queja, ${n-imp.nInc-imp.nAle} positivas) · ${imp.dup} ya estaban en la BBDD.
+  <div class="row2" style="justify-content:flex-start"><button class="btn sm pri" data-act="imp-ok" ${n?"":"disabled"}>Guardar en la BBDD</button><button class="btn sm" data-act="imp-no">Cancelar</button></div></div>`;
+}
+async function confirmarImport() {
+  const por = {}; imp.nuevas.forEach(e => (por[e.fecha] ||= []).push(e));
+  const fechas = Object.keys(por).sort(); let i = 0;
+  for (const f of fechas) {
+    i++; $("#dbst").textContent = `guardando día ${i} de ${fechas.length}…`;
+    const prev = (dias[f]?.evals) || [];
+    const nuevos = por[f].map(({fecha, ...e}) => e);
+    if (!(await escribir("dias/"+f, {fecha:f, evals:[...prev, ...nuevos]}))) return;
+  }
+  toast(`${imp.nuevas.length} evaluaciones guardadas`); imp = null; render();
+}
+
+// ---------- render y eventos ----------
+function render() {
+  build(); renderHead();
+  const v = {dash:renderDash, casos:renderCasos, correos:renderCorreos, reporte:renderReporte, bbdd:renderBBDD, config:renderConfig}[tab]();
+  $("#main").innerHTML = renderImport() + v;
+}
+let lastFocus = null;
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "file" && t.files[0]) { leerArchivo(t.files[0]); t.value = ""; }
+  if (t.id === "ffile" && t.files[0]) { leerFlota(t.files[0]); t.value = ""; }
+  if (t.id === "bfile" && t.files[0]) { restaurarRespaldo(t.files[0]); t.value = ""; }
+  else if (t.id === "dv") { DV = t.value; dOpen = null; render(); }
+  else if (t.id === "mes") { F.mes = t.value; page = 0; R0 = ""; render(); }
+  else if (t.dataset.f && t.tagName === "SELECT") { F[t.dataset.f] = t.value; render(); }
+  else if (t.id === "r0" || t.id === "r1") { if (t.id === "r0") R0 = t.value; else R1 = t.value; render(); }
+});
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id === "fq" || t.id === "q2") {
+    if (t.id === "fq") F.q = t.value; else { F.q2 = t.value; page = 0; }
+    clearTimeout(lastFocus); lastFocus = setTimeout(() => { const pos = t.selectionStart; render(); const n = $("#"+t.id); if (n) { n.focus(); n.setSelectionRange(pos,pos); } }, 250);
+  }
+});
+document.addEventListener("click", async e => {
+  const tb = e.target.closest(".tab"); if (tb) { tab = tb.dataset.t; open = null; render(); return; }
+  const dy = e.target.closest(".dia"); if (dy) { const v = dy.dataset.per; F.mes = (F.mes === v) ? (v.startsWith("D:") ? "W:" + lunes(v.slice(2)) : "") : v; page = 0; render(); return; }
+  const b = e.target.closest("[data-act]");
+  if (b) {
+    const a = b.dataset.act, gi = +b.dataset.g;
+    if (a === "guardar") guardarCaso(b.dataset.id);
+    else if (a === "cerrar") { open = null; render(); }
+    else if (a === "imp-ok") { b.disabled = true; await confirmarImport(); }
+    else if (a === "imp-no") { imp = null; render(); }
+    else if (a === "cp-asunto") copiar(null, asunto(pending.P[gi]));
+    else if (a === "cp-para") { const c = areaCfg(pending.P[gi][0].area) || {}; copiar(null, [c.para, c.cc].filter(Boolean).join("; ")); }
+    else if (a === "cp-cuerpo") copiar(cuerpo(pending.P[gi]), textoPlano(pending.P[gi]));
+    else if (a === "enviado") { b.disabled = true; if (await marcarGrupo(pending.P[gi], {estado:"En planificación", fini:today()})) toast("Marcado como enviado: En planificación"); }
+    else if (a === "respuesta") { b.disabled = true; const L = pending.E[gi], plan = $("#rp"+gi).value.trim(), est = $("#rs"+gi).value;
+      if (await marcarGrupo(L, {estado:est, ffin: est === "Finalizado" ? ($("#rf"+gi).value || today()) : "", ...(plan ? {plan} : {})})) toast("Respuesta registrada: " + est); }
+    else if (a === "ia") generarCasos();
+    else if (a === "cli-cont" || a === "cli-cierre") {
+      b.disabled = true; const f = $("#cfecha").value || today(); const L = repRows();
+      const sel = a === "cli-cont" ? L.filter(r => !r.fcont) : L.filter(r => r.estado === "Finalizado" && !r.fcierre);
+      let n = 0; for (const r of sel) { if (await escribir("gestion/"+r.id, {...(gest[r.id]||{}), area:r.area, resp:r.resp, tipoInc:r.tipoInc, subt:r.subt, [a === "cli-cont" ? "fcont" : "fcierre"]: f})) n++; else break; }
+      toast(`${n} caso(s) con ${a === "cli-cont" ? "1er contacto" : "cierre"} del ${fdate(f)}`); }
+    else if (a === "rep-xlsx") repXlsx();
+    else if (a === "rep-mail") repMail();
+    else if (a === "bbdd-xlsx") bbddXlsx();
+    else if (a === "bdq-xlsx") bdqXlsx();
+    else if (a === "prev") { page--; render(); } else if (a === "next") { page++; render(); }
+    else if (a === "cfg-save") guardarConfig();
+    else if (a === "bk-exp") exportarRespaldo();
+    return;
+  }
+  const da = e.target.closest("[data-dall]"); if (da) { dAll[da.dataset.dall] = !dAll[da.dataset.dall]; render(); return; }
+  const dr = e.target.closest("tr[data-dash]"); if (dr) { dOpen = dOpen === dr.dataset.dash ? null : dr.dataset.dash; render(); return; }
+  const tr = e.target.closest("tr.row"); if (tr) { const foco = !!e.target.closest(".plan"); open = (open === tr.dataset.id && !foco) ? null : tr.dataset.id; render(); if (foco && open) { const t = $("#e_plan"); if (t) { t.focus(); t.scrollIntoView({block:"center"}); } } }
+});
+
+// ---------- conexión a Firebase (versión GitHub Pages) ----------
+(async () => {
+  dl = {save: async ({filename, data}) => { const u = URL.createObjectURL(data), a = document.createElement("a"); a.href = u; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 3000); }};
+  sample = null;   // la IA de Claude no está disponible fuera de claude.ai
+  const FB = window.FIREBASE_CONFIG;
+  if (!window.firebase || !FB || !FB.apiKey || /PEGA/.test(FB.apiKey)) {
+    $("#dbst").textContent = "falta configurar Firebase";
+    $("#main").innerHTML = `<div class="empty">Esta página aún no está conectada a su base de datos.<br>Completa el archivo <b>firebase-config.js</b> del repositorio (ver README).</div>`; return; }
+  firebase.initializeApp(FB);
+  const auth = firebase.auth();
+  let unsub = [];
+  auth.onAuthStateChanged(user => {
+    unsub.forEach(f => f()); unsub = []; db = null; conectado = false; $("#usr").innerHTML = "";
+    if (!user) {
+      $("#dbst").textContent = "inicia sesión para ver los datos";
+      $("#main").innerHTML = `<div class="empty"><p>Ingresa con tu cuenta de Google autorizada para ver y gestionar las incidencias.</p><button class="btn pri" id="login">Ingresar con Google</button></div>`;
+      $("#login").onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => toast("No se pudo ingresar: " + (e.message||e.code)));
+      return; }
+    db = firebase.firestore();
+    $("#usr").innerHTML = ` · ${esc(user.email)} · <a href="#" id="logout" style="color:var(--sky)">salir</a>`;
+    $("#dbst").textContent = "conectando…";
+    const sinAcceso = err => { $("#dbst").textContent = err.code === "permission-denied" ? "tu cuenta no tiene acceso: pide que la agreguen a la lista autorizada" : "error de base de datos: " + err.code;
+      $("#main").innerHTML = `<div class="empty">La cuenta ${esc(user.email)} no está autorizada para ver estos datos.</div>`; };
+    let listo = {d:false, g:false};
+    const ok = () => { if (listo.d && listo.g) conectado = true; render(); };
+    unsub.push(db.collection("dias").onSnapshot(s => { dias = {}; s.docs.forEach(d => dias[d.id] = d.data()); if (!s.metadata.fromCache) listo.d = true; ok(); }, sinAcceso));
+    unsub.push(db.collection("gestion").onSnapshot(s => { gest = {}; s.docs.forEach(d => gest[d.id] = d.data()); if (!s.metadata.fromCache) listo.g = true; ok(); }, () => {}));
+    unsub.push(db.doc("flota/main").onSnapshot(s => { if (s.exists) { flota = {f:[], m:{}, ...s.data()}; $("#flbtn").title = `Flota cargada al ${fdate(flota.fecha)} (${flota.n} móviles).`; render(); } }, () => {}));
+    unsub.push(db.doc("config/main").onSnapshot(s => { if (s.exists) cfg = {...cfg, ...s.data()}; render(); }, () => {}));
+  });
+  document.addEventListener("click", e => { if (e.target.id === "logout") { e.preventDefault(); auth.signOut(); } });
+})();
+
+}
+</script>
+</body>
+</html>
