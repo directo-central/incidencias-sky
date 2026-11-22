@@ -1,11 +1,16 @@
-// Pega aquí la configuración de tu proyecto Firebase
-// (Firebase Console → Configuración del proyecto → Tus apps → App web → "firebaseConfig").
-// Estos datos no son secretos: el acceso real lo controlan el inicio de sesión y las reglas de firestore.rules.
+// Configuracion del proyecto Firebase incidencias-sky (no es secreta: el acceso lo controlan el inicio de sesion y las reglas de Firestore).
 window.FIREBASE_CONFIG = {
-  apiKey: "PEGA_AQUI_TU_API_KEY",
-  authDomain: "TU-PROYECTO.firebaseapp.com",
-  projectId: "TU-PROYECTO",
-  storageBucket: "TU-PROYECTO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:xxxxxxxxxxxxxxxx"
+
+  apiKey: "AIzaSyCoZNuvKwzMKP7GZP_qbMo4r2-4ftZihIo",
+
+  authDomain: "incidencias-sky.firebaseapp.com",
+
+  projectId: "incidencias-sky",
+
+  storageBucket: "incidencias-sky.firebasestorage.app",
+
+  messagingSenderId: "300665360507",
+
+  appId: "1:300665360507:web:3718be220b840b96bf12de"
+
 };
