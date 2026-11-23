@@ -9,7 +9,8 @@ service cloud.firestore {
         && request.auth.token.email_verified == true
         && request.auth.token.email.lower() in [
           'coord.ope.directo@gmail.com',
-          'osoriopiomel@gmail.com'
+          'osoriopiomel@gmail.com',
+          'jorge.fallaque.deza@gmail.com'
         ];
     }
     match /{document=**} {
