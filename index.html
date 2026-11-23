@@ -299,7 +299,7 @@ function filtrados() {
   return rows.filter(r => gestionables(r) && inMes(r)
     && (F.estado === "todos" || (F.estado === "abiertos" ? r.estado !== "Finalizado" : stLabel(r.estado) === F.estado))
     && (!F.area || r.area === F.area) && (!F.tipo || r.tipoInc === F.tipo)
-    && (!q || norm([r.ruta,r.cond,r.dni,r.coment,r.unidad,r.plan].join(" ")).includes(q))).reverse();
+    && (!q || norm([r.ruta,r.cond,r.dni,pasNom(r),r.coment,r.unidad,r.plan].join(" ")).includes(q))).reverse();
 }
 function opts(list, sel, all) { return (all ? `<option value="">${all}</option>` : "") + list.map(v => `<option ${v===sel?"selected":""}>${esc(v)}</option>`).join(""); }
 // ---------- Dashboard de alertas ----------
@@ -334,7 +334,7 @@ function renderDash() {
   const cuenta = f => { const m = {}; I.forEach(r => { const k = f(r) || "Sin dato"; m[k] = (m[k]||0) + 1; }); return Object.entries(m).sort((x, y) => y[1] - x[1]); };
   const barras = E => { const mx = Math.max(1, ...E.map(e => e[1])); return E.length ? E.map(([k, v]) => `<div><span>${esc(k)}</span><i style="width:${Math.max(4, v*100/mx)}%"></i><b>${v}</b></div>`).join("") : `<div class="empty" style="padding:16px">Sin incidencias en la ventana.</div>`; };
   const casosTab = c => `<tr class="sub2"><td colspan="8"><table><thead><tr><th>Fecha</th><th>Ruta</th><th>Conductor</th><th>Pasajero</th><th>★</th><th>Tipo de incidencia</th><th>Comentario del pasajero</th><th>Estado</th></tr></thead><tbody>
-    ${c.map(r => `<tr><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td>${esc(r.unidad ? r.unidad + " · " : "")}${esc(r.cond)}</td><td class="nw">${esc(r.dni)}</td><td class="num">${r.est}</td><td>${esc(r.tipoInc)}</td><td>${esc(r.coment)}</td><td><span class="chip ${stClass(r.estado)}">${stLabel(r.estado)}</span></td></tr>`).join("")}</tbody></table></td></tr>`;
+    ${c.map(r => `<tr><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td>${esc(r.unidad ? r.unidad + " · " : "")}${esc(r.cond)}</td><td>${esc(pasTxt(r))}</td><td class="num">${r.est}</td><td>${esc(r.tipoInc)}</td><td>${esc(r.coment)}</td><td><span class="chip ${stClass(r.estado)}">${stLabel(r.estado)}</span></td></tr>`).join("")}</tbody></table></td></tr>`;
   const fila = (id, c, cols) => { const n = nivel(c); const o = dOpen === id;
     return `<tr class="row" data-dash="${esc(id)}"><td><span class="lv lv-${n.k}">${n.t}</span></td>${cols}<td class="num"><b>${c.length}</b></td><td>${tipos(c).map(t => `<span class="tg">${esc(t)}</span>`).join("")}</td><td class="nw">${fdate(c[0].fecha)}</td><td class="num">${abiertos(c) || "—"}</td><td class="add">${o ? "Ocultar" : "Ver casos"}</td></tr>${o ? casosTab(c) : ""}`; };
   const mas = (k, n) => n > 10 ? `<div style="padding:10px 16px"><button class="btn sm" data-dall="${k}">${dAll[k] ? "Mostrar solo los 10 primeros" : `Ver todos (${n})`}</button></div>` : "";
@@ -351,11 +351,12 @@ function renderDash() {
   ${C.length ? `<div class="scroll"><table><thead><tr><th>Alerta</th><th>Conductor</th><th>Unidad</th><th>Flota</th><th>Incidencias</th><th>Tipos de incidencia</th><th>Última</th><th>Sin finalizar</th><th></th></tr></thead><tbody>
   ${C.slice(0, dAll.c ? 1e9 : 10).map(c => fila("c:" + norm(c[0].cond || c[0].unidad), c, `<td><b>${esc(c[0].cond || "Sin nombre")}</b></td><td class="num">${esc([...new Set(c.map(r => r.unidad).filter(Boolean))].join(", "))}</td><td class="nw">${esc([...new Set(c.map(flotaDe).filter(Boolean))].join(", "))}</td>`)).join("")}</tbody></table></div>${mas("c", C.length)}` : `<div class="empty">Ningún conductor con reincidencia en esta ventana.</div>`}</div>
   <div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Pasajeros con incidencias repetidas</h3><span>${P.length} pasajero(s)</span></div>
-  ${P.length ? `<div class="scroll"><table><thead><tr><th>Alerta</th><th>Pasajero (DNI)</th><th>Conductores</th><th>Rutas</th><th>Incidencias</th><th>Tipos de incidencia</th><th>Última</th><th>Sin finalizar</th><th></th></tr></thead><tbody>
+  ${P.length ? `<div class="scroll"><table><thead><tr><th>Alerta</th><th>Pasajero</th><th>Conductores</th><th>Rutas</th><th>Incidencias</th><th>Tipos de incidencia</th><th>Última</th><th>Sin finalizar</th><th></th></tr></thead><tbody>
   ${P.slice(0, dAll.p ? 1e9 : 10).map(c => { const cs = [...new Set(c.map(r => r.cond).filter(Boolean))]; const mismo = cs.length === 1 && c.length > 1;
-    return fila("p:" + c[0].dni, c, `<td class="nw"><b>${esc(c[0].dni)}</b></td><td>${esc(cs.join(", "))}${mismo ? ` <span class="tg" style="color:var(--red)">mismo conductor</span>` : ""}</td><td class="num">${new Set(c.map(r => r.ruta)).size}</td>`); }).join("")}</tbody></table></div>${mas("p", P.length)}` : `<div class="empty">Ningún pasajero con más de una incidencia en esta ventana.</div>`}</div>
+    return fila("p:" + c[0].dni, c, `<td><b>${esc(pasNom(c[0]) || c[0].dni)}</b><br><small style="color:var(--mut)">DNI ${esc(c[0].dni)}${secDe(c[0]) ? " · Sección " + esc(secDe(c[0])) : ""}</small></td><td>${esc(cs.join(", "))}${mismo ? ` <span class="tg" style="color:var(--red)">mismo conductor</span>` : ""}</td><td class="num">${new Set(c.map(r => r.ruta)).size}</td>`); }).join("")}</tbody></table></div>${mas("p", P.length)}` : `<div class="empty">Ningún pasajero con más de una incidencia en esta ventana.</div>`}</div>
   <div class="dgrid">
     <div class="panel"><div class="ph"><h3>Incidencias por tipo</h3><span>${I.length}</span></div><div class="hb">${barras(cuenta(r => r.tipoInc))}</div></div>
+    <div class="panel"><div class="ph"><h3>Incidencias por sección SKY del pasajero</h3><span>${colab.n ? "según colaboradores de Llegando" : "sin lista de colaboradores"}</span></div><div class="hb">${barras(cuenta(r => secDe(r) || (colab.n ? "No figura en colaboradores" : "")))}</div></div>
     <div class="panel"><div class="ph"><h3>Incidencias por flota</h3><span>${flota.n ? "según Reporte de Conductores" : "carga la flota con «Importar flota»"}</span></div><div class="hb">${barras(cuenta(flotaDe))}</div></div>
   </div>`;
 }
@@ -380,7 +381,7 @@ function renderCasos() {
 function editor(r) {
   const areas = (cfg.areas||DEF_AREAS).map(a => a.area);
   return `<tr class="ed"><td colspan="9"><div class="edgrid">
-    <div class="w4"><label class="note">Comentario del pasajero · DNI ${esc(r.dni)} · ${esc(r.tipoReg)}</label><div class="quote">${esc(r.coment) || "<i>Sin comentario</i>"}</div></div>
+    <div class="w4"><label class="note">Comentario del pasajero · ${esc(pasTxt(r))}${secDe(r) ? " · Sección SKY " + esc(secDe(r)) : ""} · ${esc(r.tipoReg)}</label><div class="quote">${esc(r.coment) || "<i>Sin comentario</i>"}</div></div>
     <div class="f"><label for="e_tipo">Tipo de incidencia</label><select id="e_tipo">${opts([...K.prio,"Sin detalle"], r.tipoInc)}</select></div>
     <div class="f w2"><label for="e_caso">Caso (resumen de la queja)</label><input id="e_caso" type="text" value="${esc(r.caso)}" placeholder="Ej.: unidad no cuenta con aire acondicionado"></div>
     <div class="f w4"><label for="e_subt">Subtipos relacionados</label><input id="e_subt" type="text" value="${esc(r.subt)}"></div>
@@ -441,6 +442,11 @@ async function guardarCaso(id) {
 // ---------- Flota (Reporte de Conductores) ----------
 let flota = {f:[], m:{}, fecha:"", n:0, archivo:""};
 const movKey = v => { const t = String(v ?? "").trim(); return /^\d+$/.test(t) ? String(+t) : t.toUpperCase(); };
+let colab = {m:{}, n:0, fecha:""};   // colaboradores SKY (Llegando): dni -> [nombre, code, sección, comuna]
+const colDe = r => colab.m[String(r.dni || "").trim()] || null;
+const pasNom = r => { const c = colDe(r); return c ? c[0] : ""; };
+const secDe = r => { const c = colDe(r); return c ? c[2] : ""; };
+const pasTxt = r => { const n = pasNom(r); return n ? `${n} (${r.dni})` : String(r.dni || ""); };
 const flotaDe = r => { const i = flota.m[movKey(r.unidad)]; return i === undefined ? "" : flota.f[i]; };
 async function leerFlota(file) {
   if (!window.XLSX) { toast("No se pudo cargar la librería de Excel"); return; }
@@ -487,14 +493,14 @@ function cuerpo(L) {
   const th = 'style="background:#0a50e6;color:#fff;padding:6px;border:1px solid #999;font-size:12px;text-align:left"', td = 'style="padding:6px;border:1px solid #999;font-size:12px;vertical-align:top"';
   return `<div style="font-family:Arial;font-size:13px"><p>Estimado(s) ${esc(a.resp||"")}:</p><p>Les compartimos la siguiente incidencia reportada por pasajeros de SKY en la evaluación del servicio. Agradeceremos nos indiquen el <b>plan de acción / acciones correctivas</b> respondiendo este correo <b>sin modificar el asunto</b>.</p>
   <table style="border-collapse:collapse"><tr>${["Fecha","Ruta","Unidad","Conductor","Pasajero (DNI)","Estrellas","Tipo de incidencia","Caso","Comentario del pasajero"].map(h=>`<th ${th}>${h}</th>`).join("")}</tr>
-  ${L.map(r => `<tr>${[fdate(r.fecha),r.ruta,r.unidad,r.cond,r.dni,r.est,r.tipoInc,r.caso||r.subt,r.coment].map(v=>`<td ${td}>${esc(v)}</td>`).join("")}</tr>`).join("")}</table>
+  ${L.map(r => `<tr>${[fdate(r.fecha),r.ruta,r.unidad,r.cond,pasTxt(r),r.est,r.tipoInc,r.caso||r.subt,r.coment].map(v=>`<td ${td}>${esc(v)}</td>`).join("")}</tr>`).join("")}</table>
   <p>Quedamos atentos.</p><p>Saludos cordiales,</p><br></div>`;
 }
 const asunto = L => `Incidencia SKY - Ruta ${L[0].ruta} - ${L[0].tipoInc} [SKY ${L[0].ruta}-${areaCfg(L[0].area)?.codigo||"CC"}]`;
 function textoPlano(L) {
   const a = areaCfg(L[0].area) || {};
   return `Estimado(s) ${a.resp||""}:\n\nLes compartimos la siguiente incidencia reportada por pasajeros de SKY en la evaluación del servicio. Agradeceremos nos indiquen el plan de acción / acciones correctivas respondiendo este correo sin modificar el asunto.\n\n`
-    + L.map(r => `Fecha: ${fdate(r.fecha)} | Ruta: ${r.ruta} | Unidad: ${r.unidad} | Conductor: ${r.cond} | Pasajero: ${r.dni} | Estrellas: ${r.est} | ${r.tipoInc} (${r.subt})\nComentario: ${r.coment}`).join("\n\n")
+    + L.map(r => `Fecha: ${fdate(r.fecha)} | Ruta: ${r.ruta} | Unidad: ${r.unidad} | Conductor: ${r.cond} | Pasajero: ${pasTxt(r)} | Estrellas: ${r.est} | ${r.tipoInc} (${r.subt})\nComentario: ${r.coment}`).join("\n\n")
     + `\n\nQuedamos atentos.\n\nSaludos cordiales,\n`;
 }
 function renderCorreos() {
@@ -545,7 +551,7 @@ function renderReporte() {
    <p class="note" style="margin:6px 0 0">1er contacto: el correo con el que se responde al cliente al recibir las incidencias. Cierre: el último correo al cliente con el plan de acción de los casos atendidos (solo se marca en los casos Finalizados).</p></div>
   <p class="note">${L.length} casos gestionados · ${c("Finalizado")} finalizados · ${c("En proceso")} en proceso · ${c("En planificación")+c("")} en planificación (para el cliente, los casos pendientes figuran como En planificación). Para: ${esc(cfg.clientePara) || "configura el correo del cliente"}.</p>
   <div class="panel scroll">${L.length ? `<table class="stack rep"><thead><tr>${REP_H.map((h,i) => `<th class="${i<7?"p":"d"}">${h}</th>`).join("")}</tr></thead><tbody>
-  ${L.map(r => `<tr><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td class="num">${esc(r.unidad)}</td><td>${esc(r.cond)}</td><td class="nw">${esc(r.dni)}</td><td class="num">${r.est}</td><td>${esc(r.coment)}</td><td>${esc(r.tipoInc)}</td><td class="caso">${esc(r.caso || r.subt)}</td><td>${esc(r.area)}</td><td>${esc(r.plan)}</td><td class="nw">${fdate(r.fini)}</td><td><span class="chip ${stClass(estCli(r.estado))}">${estCli(r.estado)}</span></td><td class="nw">${fdate(r.ffin)}</td><td>${esc(r.cdir)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No hay casos en este periodo.</div>`}</div>`;
+  ${L.map(r => `<tr><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td class="num">${esc(r.unidad)}</td><td>${esc(r.cond)}</td><td>${esc(pasTxt(r))}</td><td class="num">${r.est}</td><td>${esc(r.coment)}</td><td>${esc(r.tipoInc)}</td><td class="caso">${esc(r.caso || r.subt)}</td><td>${esc(r.area)}</td><td>${esc(r.plan)}</td><td class="nw">${fdate(r.fini)}</td><td><span class="chip ${stClass(estCli(r.estado))}">${estCli(r.estado)}</span></td><td class="nw">${fdate(r.ffin)}</td><td>${esc(r.cdir)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No hay casos en este periodo.</div>`}</div>`;
 }
 const xser = s => s ? (Date.UTC(+s.slice(0,4), +s.slice(5,7)-1, +s.slice(8,10)) - Date.UTC(1899,11,30)) / 864e5 : "";
 const ST_FILL = {"En planificación":"FFE699","En proceso":"F4B183","Finalizado":"A9D18E"};
@@ -577,8 +583,8 @@ async function descargarXlsx(nombre, headers, data, hoja, estilo) {
 function repXlsx() {
   const L = repRows();
   descargarXlsx(`Reporte_Incidencias_SKY_${R0}_${R1}.xlsx`, REP_H,
-    L.map(r => [xser(r.fecha), r.ruta, r.unidad, r.cond, r.dni, r.est, r.coment, r.tipoInc, r.caso || r.subt, r.area, r.plan, xser(r.fini), estCli(r.estado), xser(r.ffin), r.cdir]), "Reporte", {split:7, rowH:32.4, bold:["Tipo de incidencia"], center:["Unidad","Calificación (★)","Fecha de inicio","Estado","Fecha de cierre"],
-      widths:{"Fecha":11.8,"Ruta":11,"Unidad":8.4,"Conductor":18.8,"Pasajero (DNI)":10.6,"Calificación (★)":10.9,"Comentario del pasajero":50.8,"Tipo de incidencia":17.9,"Caso":34.8,"Área responsable":20.7,"Plan de acción":27.8,"Fecha de inicio":14.2,"Estado":11.8,"Fecha de cierre":12.8,"Comentario de Directo":50.8}});
+    L.map(r => [xser(r.fecha), r.ruta, r.unidad, r.cond, pasTxt(r), r.est, r.coment, r.tipoInc, r.caso || r.subt, r.area, r.plan, xser(r.fini), estCli(r.estado), xser(r.ffin), r.cdir]), "Reporte", {split:7, rowH:32.4, bold:["Tipo de incidencia"], center:["Unidad","Calificación (★)","Fecha de inicio","Estado","Fecha de cierre"],
+      widths:{"Fecha":11.8,"Ruta":11,"Unidad":8.4,"Conductor":18.8,"Pasajero (DNI)":26,"Calificación (★)":10.9,"Comentario del pasajero":50.8,"Tipo de incidencia":17.9,"Caso":34.8,"Área responsable":20.7,"Plan de acción":27.8,"Fecha de inicio":14.2,"Estado":11.8,"Fecha de cierre":12.8,"Comentario de Directo":50.8}});
 }
 function repMail() {
   const L = repRows(); const n = s => L.filter(r => estCli(r.estado) === s).length;
@@ -600,13 +606,13 @@ function repMail() {
 
 // ---------- BBDD ----------
 function renderBBDD() {
-  const q = norm(F.q2 || ""); const L = rows.filter(r => inMes(r) && (!q || norm([r.ruta,r.cond,r.dni,r.coment,r.tipoReg,r.tipoInc].join(" ")).includes(q)));
+  const q = norm(F.q2 || ""); const L = rows.filter(r => inMes(r) && (!q || norm([r.ruta,r.cond,r.dni,pasNom(r),r.coment,r.tipoReg,r.tipoInc].join(" ")).includes(q)));
   const N = 100, pages = Math.max(1, Math.ceil(L.length / N)); page = Math.min(page, pages-1);
   const V = L.slice(page*N, page*N+N);
   return `<div class="filters"><div style="grid-column:span 3"><label for="q2">Buscar en la BBDD</label><input id="q2" type="text" value="${esc(F.q2||"")}" placeholder="Ruta, conductor, DNI, comentario, tipo…"></div>
   <div style="grid-column:span 2;display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap"><button class="btn sm pri" data-act="bbdd-xlsx">Descargar BBDD (Excel)</button><button class="btn sm" data-act="bdq-xlsx" title="Casos a gestionar del periodo en el formato de la hoja Data de la BD de Incidencias de Calidad">Formato BD Incidencias Calidad</button><span style="font-size:12px;color:var(--mut)">${flota.n ? `Flota al ${fdate(flota.fecha)} · ${flota.n} móviles` : "Flota sin cargar: usa «Importar flota»"}</span></div></div>
   <div class="panel scroll"><table class="stack"><thead><tr><th>Fecha</th><th>Ruta</th><th>Unidad</th><th>Flota</th><th>Conductor</th><th>DNI</th><th>★</th><th>Tipo registro</th><th>Comentario pasajero</th><th>Tipo de incidencia</th><th>Área</th><th>Estado</th></tr></thead><tbody>
-  ${V.map(r => `<tr><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td class="num">${esc(r.unidad)}</td><td class="nw">${esc(flotaDe(r))}</td><td>${esc(r.cond)}</td><td class="nw">${esc(r.dni)}</td><td class="num">${r.est}</td><td class="${r.tipoReg===LI?"tr-i":r.tipoReg===LA?"tr-a":""}">${esc(r.tipoReg)}</td><td>${esc(r.coment)}</td><td>${esc(r.tipoInc)}</td><td>${esc(r.area)}</td><td>${gestionables(r) ? `<span class="chip ${stClass(r.estado)}">${stLabel(r.estado)}</span>` : ""}</td></tr>`).join("")}
+  ${V.map(r => `<tr><td class="nw">${fdate(r.fecha)}</td><td class="nw">${esc(r.ruta)}</td><td class="num">${esc(r.unidad)}</td><td class="nw">${esc(flotaDe(r))}</td><td>${esc(r.cond)}</td><td class="nw">${esc(r.dni)}${pasNom(r) ? `<br><small style="color:var(--mut)">${esc(pasNom(r))}</small>` : ""}</td><td class="num">${r.est}</td><td class="${r.tipoReg===LI?"tr-i":r.tipoReg===LA?"tr-a":""}">${esc(r.tipoReg)}</td><td>${esc(r.coment)}</td><td>${esc(r.tipoInc)}</td><td>${esc(r.area)}</td><td>${gestionables(r) ? `<span class="chip ${stClass(r.estado)}">${stLabel(r.estado)}</span>` : ""}</td></tr>`).join("")}
   </tbody></table><div class="pager"><span>${L.length} evaluaciones · página ${page+1} de ${pages}</span><span><button class="btn sm" data-act="prev" ${page?"":"disabled"}>Anterior</button> <button class="btn sm" data-act="next" ${page<pages-1?"":"disabled"}>Siguiente</button></span></div></div>`;
 }
 // ---------- Formato BD Incidencias Calidad (hoja Data / Tabla1) ----------
@@ -627,7 +633,7 @@ function bdqXlsx() {
   if (!L.length) { toast("No hay casos a gestionar en este periodo"); return; }
   descargarXlsx(`BD_Incidencias_SKY${F.mes ? "_"+rango().join("_al_") : ""}.xlsx`, BDQ_H, L.map(r => { const [tipo, causa] = tipologia(r); return [
     "Jorge", xser(r.fecha), r.tipoReg === LI ? "Calificación 1-3 estrellas" : "OMW", "", xser(r.fecha), "Sky", "", "Routing", "Reserva",
-    r.ruta, "Aerolínea", r.dni, "Sky Airlines", flotaDe(r), r.unidad, r.cond, r.coment, "", areaBD(r.area), tipo, "", tipo ? "Inconformidad con el svc realizado" : "",
+    r.ruta, "Aerolínea", pasNom(r) || r.dni, "Sky Airlines", flotaDe(r), r.unidad, r.cond, r.coment, "", areaBD(r.area), tipo, "", tipo ? "Inconformidad con el svc realizado" : "",
     r.caso || r.subt, causa, r.cdir, r.plan, "", xser(r.fcont), xser(r.fcierre), "", "", "", "", ""]; }), "Data",
     {hdrFill:"002060", hdrBold:false, font:"Calibri", sz:11, allCenter:true, noBorder:true, noWrap:true, hdrH:45.6,
      widths:{"Atendido por:":18.8,"Flota":11.8,"N° Móvil":18.8,"Área responsable":36.8,"Tipo de Incidencia":18.8,"Caso":34.8,"Causa":38,"Acción correctiva Conductor / Operación":45.3,"Acción correctiva de cara al Cliente":18.8,"Estatus":11.8,"Días de respuesta":18.8,"Mes":11.8,"Columna1":18.8}});
@@ -650,11 +656,12 @@ function renderConfig() {
 </div>
   <p class="note">Los correos terminan en "Saludos cordiales," para que Outlook agregue la firma de cada ejecutivo.</p>
   <div class="row2"><button class="btn pri" data-act="cfg-save">Guardar configuración</button></div>
+  <h2 style="margin-top:24px">Colaboradores SKY</h2><p class="note">${colab.n ? `${colab.n} colaboradores cargados desde Llegando el ${fdate(colab.fecha)} (nombre, código y sección). Se usan para mostrar el nombre del pasajero en casos, reportes, BD de Calidad y dashboard.` : "Aún no se cargó la lista de colaboradores de Llegando."}</p>
   <h2 style="margin-top:24px">Respaldo de datos</h2><p class="note">Descarga toda la base (evaluaciones, gestión de casos, flota y configuración) en un archivo JSON, o restaura un respaldo. Sirve para pasar los datos del gestor de Claude a la versión de GitHub, o al revés. Restaurar no borra nada: agrega o reemplaza los registros del archivo.</p>
   <div class="row2" style="justify-content:flex-start"><button class="btn" data-act="bk-exp">Exportar respaldo (JSON)</button><label class="btn" for="bfile">Restaurar respaldo</label><input id="bfile" type="file" accept=".json" hidden></div>`;
 }
 async function exportarRespaldo() {
-  const data = {version:1, exportado:new Date().toISOString(), dias, gestion:gest, flota, config:cfg};
+  const data = {version:1, exportado:new Date().toISOString(), dias, gestion:gest, flota, colab, config:cfg};
   if (!dl) { toast("La descarga no está disponible en esta vista"); return; }
   try { await dl.save({filename:`respaldo_incidencias_sky_${today()}.json`, data:new Blob([JSON.stringify(data)], {type:"application/json"})}); toast("Respaldo descargado"); }
   catch (e) { toast("No se pudo descargar: " + (e.message||e.code)); }
@@ -664,6 +671,7 @@ async function restaurarRespaldo(file) {
   if (!d || !d.dias || !d.gestion) { toast("El archivo no es un respaldo del gestor"); return; }
   const docs = [...Object.entries(d.dias).map(([k,v]) => ["dias/"+k, v]), ...Object.entries(d.gestion).map(([k,v]) => ["gestion/"+k, v])];
   if (d.flota && d.flota.n) docs.push(["flota/main", d.flota]);
+  if (d.colab && d.colab.n) docs.push(["colab/main", d.colab]);
   if (d.config && Object.keys(d.config).length) docs.push(["config/main", d.config]);
   let n = 0; for (const [path, v] of docs) { $("#dbst").textContent = `restaurando ${++n} de ${docs.length}…`; if (!(await escribir(path, v))) return; }
   toast(`Respaldo restaurado: ${Object.keys(d.dias).length} días y ${Object.keys(d.gestion).length} casos`);
@@ -845,6 +853,7 @@ document.addEventListener("click", async e => {
     unsub.push(db.collection("dias").onSnapshot(s => { dias = {}; s.docs.forEach(d => dias[d.id] = d.data()); if (!s.metadata.fromCache) listo.d = true; ok(); }, sinAcceso));
     unsub.push(db.collection("gestion").onSnapshot(s => { gest = {}; s.docs.forEach(d => gest[d.id] = d.data()); if (!s.metadata.fromCache) listo.g = true; ok(); }, () => {}));
     unsub.push(db.doc("flota/main").onSnapshot(s => { if (s.exists) { flota = {f:[], m:{}, ...s.data()}; $("#flbtn").title = `Flota cargada al ${fdate(flota.fecha)} (${flota.n} móviles).`; render(); } }, () => {}));
+    unsub.push(db.doc("colab/main").onSnapshot(s => { if (s.exists) { colab = {m:{}, ...s.data()}; render(); } }, () => {}));
     unsub.push(db.doc("config/main").onSnapshot(s => { if (s.exists) cfg = {...cfg, ...s.data()}; render(); }, () => {}));
   });
   document.addEventListener("click", e => { if (e.target.id === "logout") { e.preventDefault(); auth.signOut(); } });
